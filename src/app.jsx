@@ -324,7 +324,7 @@ function Footer(){
         </div>
         <div className="footer-bottom">
           <span>© 2026 Mitre Ski Club Inc.</span>
-          <span><a href="#">Privacy</a> · <a href="#">Terms</a> · Built by the Web Committee</span>
+          <span><a href="#">Privacy</a> · <a href="#">Terms</a> · Built by the Web Committee · <a href="#" onClick={e=>{e.preventDefault();try{localStorage.removeItem('mpa');}catch(_){}location.replace('gate.html');}}>Sign out of preview</a></span>
         </div>
       </div>
     </footer>
