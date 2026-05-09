@@ -1,0 +1,13 @@
+{
+  "name": "mitre-ski-club",
+  "private": true,
+  "scripts": {
+    "build": "swc src/app.jsx -o dist/app.js",
+    "watch": "swc src/app.jsx -o dist/app.js --watch"
+  },
+  "devDependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@swc/cli": "^0.3",
+    "@swc/core": "^1.7"
+  }
+}

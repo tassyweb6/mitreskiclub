@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Build artifacts (we DO commit dist/app.js so GitHub Pages can serve it)
+# Comment the next line if you want dist tracked
+# dist/
+
+# Large source media that's been replaced by -opt.mp4 versions
+# (only the optimised versions are referenced in code)
+assets/hero1.mp4
+assets/hero2.mp4
+assets/hero3.mp4
+
+# Local preview / launch config
+.claude/
+
+# Generated package
+*.zip
+
+# Stale prototype files (superseded by src/app.jsx + site.css)
+components.jsx
+pages-1.jsx
+pages-2.jsx
+prototype.css
+tokens.css
+
+# Logs
+npm-debug.log*
+yarn-error.log*
