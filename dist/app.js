@@ -868,7 +868,16 @@
             href: "#"
         }, "Privacy"), " · ", /*#__PURE__*/ React.createElement("a", {
             href: "#"
-        }, "Terms"), " · Built by the Web Committee"))));
+        }, "Terms"), " · Built by the Web Committee · ", /*#__PURE__*/ React.createElement("a", {
+            href: "#",
+            onClick: (e)=>{
+                e.preventDefault();
+                try {
+                    localStorage.removeItem('mpa');
+                } catch (_) {}
+                location.replace('gate.html');
+            }
+        }, "Sign out of preview")))));
     }
     /* ── NEWS DATA ───────────────────────────────────────────── */ const NEWS = [
         {
