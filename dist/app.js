@@ -29,6 +29,128 @@
     const onLogin = ()=>{
         window.location.href = 'login.html';
     };
+    /* ── Sanity data layer ───────────────────────────────────── */ const SANITY = window.__SANITY__ || {
+        projectId: '3c10guha',
+        dataset: 'production'
+    };
+    function sanityImageUrl(src, { w, h, q = 80 } = {}) {
+        if (!src || !src.asset) return null;
+        const ref = src.asset._ref || src.asset._id || '';
+        const m = ref.match(/^image-([a-f0-9]+)-(\d+x\d+)-(\w+)$/);
+        if (!m) return null;
+        const [, id, dims, fmt] = m;
+        let url = `https://cdn.sanity.io/images/${SANITY.projectId}/${SANITY.dataset}/${id}-${dims}.${fmt}`;
+        const qs = [];
+        if (w) qs.push(`w=${w}`);
+        if (h) qs.push(`h=${h}`);
+        qs.push(`q=${q}`, 'fit=max', 'auto=format');
+        return url + '?' + qs.join('&');
+    }
+    function sanityFetch(query, params = {}) {
+        const qs = new URLSearchParams({
+            query
+        });
+        for (const [k, v] of Object.entries(params))qs.set('$' + k, JSON.stringify(v));
+        const url = `https://${SANITY.projectId}.apicdn.sanity.io/v2024-01-01/data/query/${SANITY.dataset}?${qs.toString()}`;
+        return fetch(url).then((r)=>r.json()).then((r)=>r.result);
+    }
+    function useSanityQuery(query, params, deps = []) {
+        const [data, setData] = useState(null);
+        const [loading, setLoading] = useState(true);
+        useEffect(()=>{
+            let cancelled = false;
+            setLoading(true);
+            sanityFetch(query, params).then((r)=>{
+                if (!cancelled) {
+                    setData(r);
+                    setLoading(false);
+                }
+            }).catch(()=>{
+                if (!cancelled) {
+                    setData(null);
+                    setLoading(false);
+                }
+            });
+            return ()=>{
+                cancelled = true;
+            };
+        // eslint-disable-next-line
+        }, deps);
+        return [
+            data,
+            loading
+        ];
+    }
+    function readingTimeLabel(n) {
+        return n ? `${n} min` : '';
+    }
+    function timeAgo(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr), now = new Date();
+        const days = Math.floor((now - d) / 86400000);
+        if (days <= 0) return 'today';
+        if (days === 1) return '1 day ago';
+        if (days < 14) return `${days} days ago`;
+        const weeks = Math.floor(days / 7);
+        if (weeks < 8) return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+        return d.toLocaleDateString('en-AU', {
+            month: 'short',
+            year: 'numeric'
+        });
+    }
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        return new Date(dateStr).toLocaleDateString('en-AU', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        });
+    }
+    /* ── minimal Portable Text renderer (paragraphs, headings, marks, links) ── */ function PortableText({ blocks }) {
+        if (!blocks) return null;
+        return blocks.map((block, i)=>{
+            if (block._type !== 'block') return null;
+            const children = (block.children || []).map((span, j)=>{
+                const marks = span.marks || [];
+                const linkDef = marks.map((m)=>(block.markDefs || []).find((d)=>d._key === m && d._type === 'link')).find(Boolean);
+                let el = span.text;
+                if (marks.includes('strong')) el = /*#__PURE__*/ React.createElement("strong", {
+                    key: j
+                }, el);
+                if (marks.includes('em')) el = /*#__PURE__*/ React.createElement("em", {
+                    key: j
+                }, el);
+                if (marks.includes('underline')) el = /*#__PURE__*/ React.createElement("u", {
+                    key: j
+                }, el);
+                if (linkDef) el = /*#__PURE__*/ React.createElement("a", {
+                    key: j,
+                    href: linkDef.href,
+                    target: "_blank",
+                    rel: "noopener noreferrer"
+                }, el);
+                return /*#__PURE__*/ React.createElement(React.Fragment, {
+                    key: j
+                }, el);
+            });
+            const style = block.style || 'normal';
+            if (style === 'h1') return /*#__PURE__*/ React.createElement("h2", {
+                key: i
+            }, children);
+            if (style === 'h2') return /*#__PURE__*/ React.createElement("h3", {
+                key: i
+            }, children);
+            if (style === 'h3') return /*#__PURE__*/ React.createElement("h4", {
+                key: i
+            }, children);
+            if (style === 'blockquote') return /*#__PURE__*/ React.createElement("blockquote", {
+                key: i
+            }, children);
+            return /*#__PURE__*/ React.createElement("p", {
+                key: i
+            }, children);
+        });
+    }
     /* ── scroll reveal ───────────────────────────────────────── */ function useReveal(opts = {}) {
         const ref = useRef(null);
         const [vis, setVis] = useState(false);
@@ -879,94 +1001,8 @@
             }
         }, "Sign out of preview")))));
     }
-    /* ── NEWS DATA ───────────────────────────────────────────── */ const NEWS = [
-        {
-            id: 'first-snow',
-            tag: 'Snow report',
-            tone: 'sky',
-            src: 'assets/photo-resort-crowd.jpg',
-            date: '12 May 2026',
-            read: '3 min',
-            title: 'First proper dump of the season blankets Buller',
-            excerpt: 'Thirty centimetres overnight, with another front due Friday. The lodge manager has the boot room ready.',
-            body: [
-                "If you've been watching the radar, you'll already know — the first real front of the season rolled through Buller on Tuesday night, dropping just over thirty centimetres on Bourke Street and a touch more up on the summit.",
-                "It's the earliest decent fall we've seen since 2021. Bourke Street is open with two lifts spinning; Standard is still patchy in places but skiable end-to-end.",
-                "We've had the lodge manager Anna up since the weekend. The boot room is sorted, the kitchen restocked, and there's firewood under the eaves. A second front is forecast for Friday — twenty to forty centimetres possible."
-            ]
-        },
-        {
-            id: 'agm-2026',
-            tag: 'Notice',
-            tone: 'deep',
-            src: 'assets/photo-snowboarder-pov.jpg',
-            date: '28 Apr 2026',
-            read: '2 min',
-            title: '2026 AGM — Saturday 7 June, online & in person',
-            excerpt: 'Voting opens for two committee positions; agenda and proxy forms now available in the member portal.',
-            body: [
-                "The 2026 Annual General Meeting will be held on Saturday 7 June at 10am, in person at the lodge with a Zoom link for members who can't make it up the hill.",
-                "Two committee positions are open — Treasurer and Bookings Secretary. Nominations close Friday 30 May."
-            ]
-        },
-        {
-            id: 'working-bee',
-            tag: 'Working bee',
-            tone: 'morning',
-            src: 'assets/photo-blue-sky-resort.jpg',
-            date: '14 Apr 2026',
-            read: '4 min',
-            title: 'Working bee weekend — May 17–18',
-            excerpt: 'Two days, food provided, a couple of beds available for those travelling up. Sign up via the portal.',
-            body: [
-                "Our annual pre-season working bee is Saturday 17 and Sunday 18 May. The to-do list is mostly maintenance — check the heating, sweep the chimney, scrub the drying room, plus the usual spring clean of the kitchen.",
-                "Food and drinks are on the club. If you're driving from Melbourne and want a bed Friday or Saturday night, sign up early."
-            ]
-        },
-        {
-            id: 'used-skis',
-            tag: 'Used gear',
-            tone: 'glacier',
-            src: 'assets/photo-chairlift-golden.jpg',
-            date: '8 Apr 2026',
-            read: '1 min',
-            title: "Used gear: members selling skis, boots & jackets",
-            excerpt: "Six listings this week — Volkl Mantras, a like-new Arc'teryx shell, and two pairs of kids' boots.",
-            body: [
-                "The pre-season used-gear listings are up. Six items this week including a pair of Volkl Mantra M6 (172cm), an Arc'teryx Sabre LT shell in size M, and two pairs of kids' Salomon QSTs.",
-                "Listings are members-only; log in to the portal to see prices. Head to the used gear shop to browse listings."
-            ]
-        },
-        {
-            id: 'season-pass',
-            tag: 'Season',
-            tone: 'sunset',
-            src: 'assets/mountain.png',
-            date: '22 Mar 2026',
-            read: '2 min',
-            title: "Season pass deadline — Friday 26 April",
-            excerpt: "Buller's early-bird pricing closes end of April. Group rates available for parties of six or more.",
-            body: [
-                "Mt Buller's early-bird season pass pricing closes on Friday 26 April. After that, you'll pay the standard rate — usually a difference of around $200 per adult.",
-                "If you're skiing with five or more friends or family, the group rate brings the per-pass price down further."
-            ]
-        },
-        {
-            id: 'buller-bike',
-            tag: 'Off-season',
-            tone: 'morning',
-            src: 'assets/photo-mt-buller-peak.jpg',
-            date: '5 Mar 2026',
-            read: '3 min',
-            title: 'Lodge bookings now open for summer & autumn',
-            excerpt: 'Mountain biking, walking, family weekends — the lodge is yours outside the snow season too.',
-            body: [
-                "The lodge is available for individual and group bookings outside the ski season. Mountain biking is in full swing through summer and autumn.",
-                "There's no lodge manager in residence between October and June — we'll send you the keys, the codes, and a walkthrough of opening, closing and security."
-            ]
-        }
-    ];
-    /* ── HOME ────────────────────────────────────────────────── */ function HomePage() {
+    /* ── HOME ────────────────────────────────────────────────── */ const LATEST_POSTS_QUERY = `*[_type=="post"]|order(publishedAt desc)[0...3]{_id,title,"slug":slug.current,category,publishedAt,excerpt,mainImage{alt,asset}}`;
+    function HomePage() {
         const [loaded, setLoaded] = useState(false);
         useEffect(()=>{
             const t = setTimeout(()=>setLoaded(true), 120);
@@ -978,6 +1014,7 @@
         const [whyRef, whyVis] = useReveal({
             th: .06
         });
+        const [latestPosts, postsLoading] = useSanityQuery(LATEST_POSTS_QUERY, {}, []);
         return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("div", {
             style: {
                 paddingTop: 'var(--nav-h)'
@@ -1205,18 +1242,31 @@
         }, "All news ", /*#__PURE__*/ React.createElement(Icon, {
             name: "arrow",
             size: 14
-        })))), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
+        })))), /*#__PURE__*/ React.createElement(R, null, postsLoading ? /*#__PURE__*/ React.createElement("div", {
             className: "story-rail"
-        }, NEWS.slice(0, 3).map((p, i)=>/*#__PURE__*/ React.createElement("article", {
-                key: p.id,
+        }, [
+            0,
+            1,
+            2
+        ].map((i)=>/*#__PURE__*/ React.createElement("div", {
+                key: i,
+                className: "news-card skeleton"
+            }))) : !latestPosts || latestPosts.length === 0 ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "No news posted yet — check back soon.") : /*#__PURE__*/ React.createElement("div", {
+            className: "story-rail"
+        }, latestPosts.map((p, i)=>/*#__PURE__*/ React.createElement("article", {
+                key: p._id,
                 className: "news-card",
-                onClick: ()=>onNav('article', p.id),
+                onClick: ()=>onNav('article', p.slug),
                 style: {
                     cursor: 'pointer'
                 }
             }, /*#__PURE__*/ React.createElement(Photo, {
-                tone: p.tone,
-                src: p.src,
+                src: sanityImageUrl(p.mainImage, {
+                    w: 640
+                }),
+                label: p.mainImage && p.mainImage.alt,
                 ratio: "16/10"
             }), /*#__PURE__*/ React.createElement("div", {
                 className: "news-card-body"
@@ -1227,7 +1277,7 @@
                 style: {
                     marginRight: 8
                 }
-            }, p.tag), p.date), /*#__PURE__*/ React.createElement("h3", null, p.title), /*#__PURE__*/ React.createElement("p", null, p.excerpt), /*#__PURE__*/ React.createElement("span", {
+            }, p.category), formatDate(p.publishedAt)), /*#__PURE__*/ React.createElement("h3", null, p.title), /*#__PURE__*/ React.createElement("p", null, p.excerpt), /*#__PURE__*/ React.createElement("span", {
                 className: "more"
             }, "Read ", i === 0 ? 'article' : '', " ", /*#__PURE__*/ React.createElement(Icon, {
                 name: "arrow",
@@ -1814,13 +1864,18 @@
                 }
             }, e.d), /*#__PURE__*/ React.createElement("h3", null, e.t), /*#__PURE__*/ React.createElement("p", null, e.s))))))), /*#__PURE__*/ React.createElement(MemberBand, null), /*#__PURE__*/ React.createElement(Footer, null));
     }
-    /* ── NEWS PAGE ───────────────────────────────────────────── */ function NewsPage() {
+    /* ── NEWS PAGE ───────────────────────────────────────────── */ const ALL_POSTS_QUERY = `*[_type=="post"]|order(publishedAt desc){_id,title,"slug":slug.current,category,publishedAt,readingTimeMinutes,excerpt,mainImage{alt,asset}}`;
+    function NewsPage() {
         const [filter, setFilter] = useState('All');
+        const [posts, loading] = useSanityQuery(ALL_POSTS_QUERY, {}, []);
+        const list = posts || [];
+        const featured = list[0];
+        const rest = list.slice(1);
         const tags = [
             'All',
-            ...new Set(NEWS.map((p)=>p.tag))
+            ...new Set(list.map((p)=>p.category))
         ];
-        const visible = NEWS.slice(1).filter((p)=>filter === 'All' || p.tag === filter);
+        const visible = rest.filter((p)=>filter === 'All' || p.category === filter);
         return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
             className: "page-header"
         }, /*#__PURE__*/ React.createElement("div", {
@@ -1859,15 +1914,21 @@
             className: "section"
         }, /*#__PURE__*/ React.createElement("div", {
             className: "container-wide"
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("article", {
+        }, loading ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "Loading news…") : !featured ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "No news posted yet — check back soon.") : /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("article", {
             className: "news-featured",
-            onClick: ()=>onNav('article', NEWS[0].id),
+            onClick: ()=>onNav('article', featured.slug),
             style: {
                 cursor: 'pointer'
             }
         }, /*#__PURE__*/ React.createElement(Photo, {
-            tone: NEWS[0].tone,
-            src: NEWS[0].src
+            src: sanityImageUrl(featured.mainImage, {
+                w: 960
+            }),
+            label: featured.mainImage && featured.mainImage.alt
         }), /*#__PURE__*/ React.createElement("div", {
             className: "news-featured-body"
         }, /*#__PURE__*/ React.createElement("div", {
@@ -1877,14 +1938,14 @@
             }
         }, /*#__PURE__*/ React.createElement("span", {
             className: "chip"
-        }, NEWS[0].tag), /*#__PURE__*/ React.createElement("span", {
+        }, featured.category), /*#__PURE__*/ React.createElement("span", {
             className: "muted",
             style: {
                 fontSize: 13
             }
-        }, NEWS[0].date, " · ", NEWS[0].read, " read")), /*#__PURE__*/ React.createElement("h2", null, NEWS[0].title), /*#__PURE__*/ React.createElement("p", {
+        }, formatDate(featured.publishedAt), " · ", readingTimeLabel(featured.readingTimeMinutes), " read")), /*#__PURE__*/ React.createElement("h2", null, featured.title), /*#__PURE__*/ React.createElement("p", {
             className: "lead"
-        }, NEWS[0].excerpt), /*#__PURE__*/ React.createElement("div", {
+        }, featured.excerpt), /*#__PURE__*/ React.createElement("div", {
             style: {
                 marginTop: 'var(--sp-5)'
             }
@@ -1907,17 +1968,19 @@
             }, t)))), /*#__PURE__*/ React.createElement("div", {
             className: "news-grid"
         }, visible.map((p, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: p.id,
+                key: p._id,
                 d: i % 3
             }, /*#__PURE__*/ React.createElement("article", {
                 className: "news-card",
-                onClick: ()=>onNav('article', p.id),
+                onClick: ()=>onNav('article', p.slug),
                 style: {
                     cursor: 'pointer'
                 }
             }, /*#__PURE__*/ React.createElement(Photo, {
-                tone: p.tone,
-                src: p.src,
+                src: sanityImageUrl(p.mainImage, {
+                    w: 640
+                }),
+                label: p.mainImage && p.mainImage.alt,
                 ratio: "16/10"
             }), /*#__PURE__*/ React.createElement("div", {
                 className: "news-card-body"
@@ -1928,21 +1991,28 @@
                 style: {
                     marginRight: 8
                 }
-            }, p.tag), p.date), /*#__PURE__*/ React.createElement("h3", null, p.title), /*#__PURE__*/ React.createElement("p", null, p.excerpt), /*#__PURE__*/ React.createElement("span", {
+            }, p.category), formatDate(p.publishedAt)), /*#__PURE__*/ React.createElement("h3", null, p.title), /*#__PURE__*/ React.createElement("p", null, p.excerpt), /*#__PURE__*/ React.createElement("span", {
                 className: "more"
             }, "Read ", /*#__PURE__*/ React.createElement(Icon, {
                 name: "arrow",
                 size: 14
-            }))))))))), /*#__PURE__*/ React.createElement(MemberBand, null), /*#__PURE__*/ React.createElement(Footer, null));
+            })))))))))), /*#__PURE__*/ React.createElement(MemberBand, null), /*#__PURE__*/ React.createElement(Footer, null));
     }
-    /* ── ARTICLE ─────────────────────────────────────────────── */ function ArticlePage() {
-        const post = NEWS.find((p)=>p.id === ART_ID) || NEWS[0];
+    /* ── ARTICLE ─────────────────────────────────────────────── */ const POST_BY_SLUG_QUERY = `*[_type=="post" && slug.current==$slug][0]{_id,title,category,publishedAt,readingTimeMinutes,mainImage{alt,asset},body}`;
+    function ArticlePage() {
+        const [post, loading] = useSanityQuery(POST_BY_SLUG_QUERY, {
+            slug: ART_ID || ''
+        }, [
+            ART_ID
+        ]);
         return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
             className: "page-header"
         }, /*#__PURE__*/ React.createElement("div", {
             className: "page-header-bg"
         }, /*#__PURE__*/ React.createElement(Pic, {
-            src: post.src || 'assets/photo-mt-buller-peak.jpg',
+            src: post && post.mainImage ? sanityImageUrl(post.mainImage, {
+                w: 1600
+            }) : 'assets/photo-mt-buller-peak.jpg',
             alt: ""
         }), /*#__PURE__*/ React.createElement("div", {
             className: "page-header-overlay"
@@ -1954,16 +2024,35 @@
             href: "index.html"
         }, "Home"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("a", {
             href: "news.html"
-        }, "News"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("span", null, post.tag)), /*#__PURE__*/ React.createElement("div", {
+        }, "News"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("span", null, post ? post.category : '')), /*#__PURE__*/ React.createElement("div", {
             className: "article-wrap"
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
+        }, loading ? /*#__PURE__*/ React.createElement("p", {
+            style: {
+                color: '#fff'
+            }
+        }, "Loading…") : !post ? /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement("h1", {
+            style: {
+                color: '#fff'
+            }
+        }, "Article not found"), /*#__PURE__*/ React.createElement("p", {
+            style: {
+                color: 'rgba(255,255,255,.7)',
+                marginTop: 'var(--sp-4)'
+            }
+        }, "This story may have been moved or unpublished. ", /*#__PURE__*/ React.createElement("a", {
+            href: "news.html",
+            style: {
+                color: '#fff',
+                textDecoration: 'underline'
+            }
+        }, "Back to news →"))) : /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
             className: "chip",
             style: {
                 marginBottom: 14,
                 background: 'rgba(255,255,255,.15)',
                 color: '#fff'
             }
-        }, post.tag), /*#__PURE__*/ React.createElement("h1", {
+        }, post.category), /*#__PURE__*/ React.createElement("h1", {
             style: {
                 color: '#fff'
             }
@@ -1973,14 +2062,13 @@
                 fontSize: 14,
                 marginTop: 'var(--sp-4)'
             }
-        }, post.date, " · ", post.read, " read · By the Web Committee"))))), /*#__PURE__*/ React.createElement("section", {
+        }, formatDate(post.publishedAt), " · ", readingTimeLabel(post.readingTimeMinutes), " read · By the Web Committee"))))), post && /*#__PURE__*/ React.createElement("section", {
             className: "section"
         }, /*#__PURE__*/ React.createElement("div", {
             className: "container-wide article-wrap"
-        }, post.body.map((para, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: i,
-                d: i % 2
-            }, /*#__PURE__*/ React.createElement("p", null, para))), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("hr", {
+        }, /*#__PURE__*/ React.createElement(PortableText, {
+            blocks: post.body
+        }), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("hr", {
             className: "divider"
         }), /*#__PURE__*/ React.createElement("div", {
             className: "row"
@@ -2381,81 +2469,7 @@
             }
         }, "Enquire about joining →"))))));
     }
-    /* ── GALLERY ─────────────────────────────────────────────── */ const GALLERY_ITEMS = [
-        {
-            src: 'assets/photo-resort-crowd.jpg',
-            caption: 'Opening weekend 2024',
-            sub: 'Lodge crew',
-            cat: 'lodge'
-        },
-        {
-            src: 'assets/photo-chairlift-golden.jpg',
-            caption: 'Golden hour on the lift',
-            sub: 'July 2025',
-            cat: 'mountain'
-        },
-        {
-            src: 'assets/photo-snowboarder-pov.jpg',
-            caption: "Powder day POV",
-            sub: 'First light off Standard',
-            cat: 'mountain'
-        },
-        {
-            src: 'assets/photo-blue-sky-resort.jpg',
-            caption: 'Perfect blue sky',
-            sub: 'Summit view, 2023',
-            cat: 'mountain'
-        },
-        {
-            src: 'assets/photo-mt-buller-peak.jpg',
-            caption: 'Above the clouds',
-            sub: 'Mt Buller peak',
-            cat: 'mountain'
-        },
-        {
-            src: 'assets/photo-resort-crowd.jpg',
-            caption: 'Working bee weekend',
-            sub: 'May 2024 — all hands',
-            cat: 'bee'
-        },
-        {
-            src: 'assets/photo-chairlift-golden.jpg',
-            caption: 'Pre-dinner drinks',
-            sub: 'Lodge lounge, 2024',
-            cat: 'lodge'
-        },
-        {
-            src: 'assets/photo-blue-sky-resort.jpg',
-            caption: 'Sunday departure run',
-            sub: "Last turns of the trip",
-            cat: 'mountain'
-        },
-        {
-            src: 'assets/photo-snowboarder-pov.jpg',
-            caption: "Mitre crew out early",
-            sub: 'Bourke St, 7am',
-            cat: 'mountain'
-        },
-        {
-            src: 'assets/photo-mt-buller-peak.jpg',
-            caption: 'Summer mountain bike trip',
-            sub: 'March 2025',
-            cat: 'summer'
-        },
-        {
-            src: 'assets/photo-resort-crowd.jpg',
-            caption: 'AGM dinner at the lodge',
-            sub: 'June 2025',
-            cat: 'lodge'
-        },
-        {
-            src: 'assets/photo-chairlift-golden.jpg',
-            caption: 'New members weekend',
-            sub: 'September 2024',
-            cat: 'lodge'
-        }
-    ];
-    const GALLERY_CATS = [
+    /* ── GALLERY ─────────────────────────────────────────────── */ const GALLERY_CATS = [
         [
             'all',
             'All photos'
@@ -2477,9 +2491,11 @@
             'Off-season'
         ]
     ];
+    const GALLERY_QUERY = `*[_type=="galleryPhoto"]|order(_createdAt desc){_id,caption,context,category,image{alt,asset}}`;
     function GalleryPage() {
         const [cat, setCat] = useState('all');
-        const visible = GALLERY_ITEMS.filter((g)=>cat === 'all' || g.cat === cat);
+        const [items, loading] = useSanityQuery(GALLERY_QUERY, {}, []);
+        const visible = (items || []).filter((g)=>cat === 'all' || g.category === cat);
         return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
             className: "page-header"
         }, /*#__PURE__*/ React.createElement("div", {
@@ -2524,20 +2540,26 @@
                 key: id,
                 className: 'btn btn-sm ' + (cat === id ? 'btn-primary' : 'btn-ghost'),
                 onClick: ()=>setCat(id)
-            }, lbl))), /*#__PURE__*/ React.createElement("div", {
+            }, lbl))), loading ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "Loading gallery…") : visible.length === 0 ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "No photos yet — check back soon.") : /*#__PURE__*/ React.createElement("div", {
             className: "gallery-grid"
         }, visible.map((g, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: i,
+                key: g._id,
                 d: i % 3
             }, /*#__PURE__*/ React.createElement("div", {
                 className: "gallery-item"
             }, /*#__PURE__*/ React.createElement("img", {
-                src: g.src,
-                alt: g.caption,
+                src: sanityImageUrl(g.image, {
+                    w: 800
+                }),
+                alt: g.image && g.image.alt || g.caption,
                 loading: "lazy"
             }), /*#__PURE__*/ React.createElement("div", {
                 className: "gallery-caption"
-            }, /*#__PURE__*/ React.createElement("span", null, g.caption), /*#__PURE__*/ React.createElement("small", null, g.sub)))))), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
+            }, /*#__PURE__*/ React.createElement("span", null, g.caption), /*#__PURE__*/ React.createElement("small", null, g.context)))))), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
             className: "gallery-insta-cta"
         }, /*#__PURE__*/ React.createElement("div", {
             style: {
@@ -2576,87 +2598,7 @@
             }
         }, "secretary@mitreskiclub.com"), " to be featured."))))), /*#__PURE__*/ React.createElement(Footer, null));
     }
-    /* ── SHOP ────────────────────────────────────────────────── */ const GEAR = [
-        {
-            id: 'volkl-mantra',
-            title: "Volkl Mantra M6",
-            type: 'Skis',
-            size: '172 cm',
-            price: 380,
-            status: 'available',
-            seller: 'Tim B.',
-            posted: '2 days ago',
-            tone: 'glacier',
-            src: 'assets/photo-chairlift-golden.jpg',
-            desc: "2022 season, excellent condition. One edge repair near tip, otherwise clean. Marker bindings not included."
-        },
-        {
-            id: 'arcteryx-sabre',
-            title: "Arc'teryx Sabre LT Shell",
-            type: 'Jacket',
-            size: 'Medium',
-            price: 450,
-            status: 'available',
-            seller: 'Sarah K.',
-            posted: '5 days ago',
-            tone: 'deep',
-            src: 'assets/photo-snowboarder-pov.jpg',
-            desc: "Worn one season. Gore-Tex, all seams intact, no damage. Navy blue. DWR treatment still active."
-        },
-        {
-            id: 'salomon-qst-kids',
-            title: "Salomon QST Jr. (pair)",
-            type: 'Kids skis',
-            size: '130 cm',
-            price: 120,
-            status: 'available',
-            seller: 'The Hendersons',
-            posted: '1 week ago',
-            tone: 'sky',
-            src: 'assets/photo-blue-sky-resort.jpg',
-            desc: "Two seasons' use by a 9-year-old. Edges good, no major base damage. Bindings set for 23 BSL."
-        },
-        {
-            id: 'nordica-strider',
-            title: "Nordica Strider 130",
-            type: 'Boots',
-            size: '27.5 (EU 42)',
-            price: 160,
-            status: 'reserved',
-            seller: 'Marcus W.',
-            posted: '3 days ago',
-            tone: 'sunset',
-            src: 'assets/photo-resort-crowd.jpg',
-            desc: "One full season. Soles in great shape, liner fresh. Stiff enough for advanced skiing, walkable sole."
-        },
-        {
-            id: 'smith-vantage',
-            title: "Smith Vantage MIPS",
-            type: 'Helmet',
-            size: 'Medium (55–59 cm)',
-            price: 180,
-            status: 'available',
-            seller: 'Priya S.',
-            posted: '4 days ago',
-            tone: 'morning',
-            src: 'assets/photo-mt-buller-peak.jpg',
-            desc: "2023 model, two seasons' use, no impact. All vents working, MIPS liner clean and intact. Matte black."
-        },
-        {
-            id: 'dynastar-legend',
-            title: "Dynastar Legend 88 W",
-            type: 'Skis',
-            size: '164 cm',
-            price: 290,
-            status: 'sold',
-            seller: 'Anna R.',
-            posted: '2 weeks ago',
-            tone: 'glacier',
-            src: 'assets/photo-chairlift-golden.jpg',
-            desc: "Three seasons' use. Solid all-mountain ski, good edge hold. Selling because I moved up to a wider waist."
-        }
-    ];
-    const GEAR_CATS = [
+    /* ── SHOP ────────────────────────────────────────────────── */ const GEAR_CATS = [
         'All',
         'Skis',
         'Boots',
@@ -2664,9 +2606,11 @@
         'Helmet',
         'Kids skis'
     ];
+    const GEAR_QUERY = `*[_type=="gearListing"]|order(postedAt desc){_id,title,category,size,price,status,seller,postedAt,image{alt,asset},description}`;
     function ShopPage() {
         const [cat, setCat] = useState('All');
-        const visible = GEAR.filter((g)=>cat === 'All' || g.type === cat);
+        const [gear, loading] = useSanityQuery(GEAR_QUERY, {}, []);
+        const visible = (gear || []).filter((g)=>cat === 'All' || g.category === cat);
         return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
             className: "page-header"
         }, /*#__PURE__*/ React.createElement("div", {
@@ -2719,34 +2663,39 @@
                 key: c,
                 className: 'btn btn-sm ' + (cat === c ? 'btn-primary' : 'btn-ghost'),
                 onClick: ()=>setCat(c)
-            }, c))), /*#__PURE__*/ React.createElement("div", {
+            }, c))), loading ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "Loading listings…") : visible.length === 0 ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "No gear listed right now — check back soon.") : /*#__PURE__*/ React.createElement("div", {
             className: "gear-grid"
         }, visible.map((g, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: g.id,
+                key: g._id,
                 d: i % 3
             }, /*#__PURE__*/ React.createElement("div", {
                 className: "gear-card"
             }, /*#__PURE__*/ React.createElement("div", {
                 className: "gear-img"
             }, /*#__PURE__*/ React.createElement(Photo, {
-                src: g.src,
+                src: sanityImageUrl(g.image, {
+                    w: 640
+                }),
                 ratio: "4/3",
-                tone: g.tone,
-                label: g.type
+                label: g.category
             }), /*#__PURE__*/ React.createElement("span", {
                 className: 'gear-badge ' + (g.status === 'sold' ? 'sold' : g.status === 'reserved' ? 'reserved' : '')
-            }, g.status === 'available' ? g.type : g.status)), /*#__PURE__*/ React.createElement("div", {
+            }, g.status === 'available' ? g.category : g.status)), /*#__PURE__*/ React.createElement("div", {
                 className: "gear-body"
             }, /*#__PURE__*/ React.createElement("h3", null, g.title), /*#__PURE__*/ React.createElement("div", {
                 className: "gear-size"
             }, g.size), /*#__PURE__*/ React.createElement("p", {
                 className: "gear-desc"
-            }, g.desc), /*#__PURE__*/ React.createElement("div", {
+            }, g.description), /*#__PURE__*/ React.createElement("div", {
                 className: "gear-seller"
             }, /*#__PURE__*/ React.createElement(Icon, {
                 name: "users",
                 size: 13
-            }), g.seller, " · ", g.posted), /*#__PURE__*/ React.createElement("div", {
+            }), g.seller, " · ", timeAgo(g.postedAt)), /*#__PURE__*/ React.createElement("div", {
                 className: "gear-price"
             }, g.status === 'sold' ? /*#__PURE__*/ React.createElement("span", {
                 style: {

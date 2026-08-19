@@ -38,6 +38,17 @@ copyFile(path.join(ROOT, 'site.css'), path.join(OUT, 'site.css'));
 // compiled JS
 copyDir(path.join(ROOT, 'dist'), path.join(OUT, 'dist'));
 
+// Inject Sanity project/dataset config, read from env at build time.
+// Falls back to the production dataset for plain local builds (no Vercel env).
+const sanityConfig = {
+  projectId: process.env.SANITY_PROJECT_ID || '3c10guha',
+  dataset: process.env.SANITY_DATASET || 'production',
+};
+fs.writeFileSync(
+  path.join(OUT, 'dist', 'sanity-config.js'),
+  `window.__SANITY__=${JSON.stringify(sanityConfig)};\n`
+);
+
 // assets, skipping the large un-optimised source videos
 const SKIP = new Set(['hero1.mp4', 'hero2.mp4', 'hero3.mp4']);
 copyDir(path.join(ROOT, 'assets'), path.join(OUT, 'assets'), (name) => !SKIP.has(name));
