@@ -27,6 +27,9 @@ assets/hero3.mp4
 # Generated package
 *.zip
 
+# Vercel build output (assembled by scripts/build-static.js at build time)
+public/
+
 # Stale prototype files (superseded by src/app.jsx + site.css)
 components.jsx
 pages-1.jsx

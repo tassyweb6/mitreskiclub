@@ -2,7 +2,7 @@
   "name": "mitre-ski-club",
   "private": true,
   "scripts": {
-    "build": "swc src/app.jsx -o dist/app.js",
+    "build": "swc src/app.jsx -o dist/app.js && node scripts/build-static.js",
     "watch": "swc src/app.jsx -o dist/app.js --watch"
   },
   "devDependencies": {
