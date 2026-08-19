@@ -540,7 +540,7 @@ p{margin:0 0 1em;max-width:62ch;text-wrap:pretty}
 .stars svg{fill:currentColor;stroke:none}
 .reviews-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-6)}
 @media(max-width:880px){.reviews-grid{grid-template-columns:1fr}}
-.review-card{background:var(--bg-elev);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-7);display:flex;flex-direction:column;gap:var(--sp-4);transition:transform var(--dur) var(--ease-out),box-shadow var(--dur) var(--ease-out)}
+.review-card{background:var(--bg-elev);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--sp-6);display:flex;flex-direction:column;gap:var(--sp-4);transition:transform var(--dur) var(--ease-out),box-shadow var(--dur) var(--ease-out)}
 .review-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
 .review-card-top{display:flex;align-items:center;gap:var(--sp-3)}
 .review-avatar{width:40px;height:40px;border-radius:50%;background:var(--brand-deep);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;font-family:var(--font-display);opacity:.85}
