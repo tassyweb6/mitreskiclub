@@ -236,123 +236,376 @@ function Logo({height=36,mono=false}){
   );
 }
 
-/* ── TopNav ──────────────────────────────────────────────── */
-function TopNav({current}){
-  const[open,setOpen]=useState(false);
-  const scrolled=true;
-  const items=[['home','Home'],['lodge','The Lodge'],['buller','Mt Buller'],['news','News'],['gallery','Gallery'],['enquiries','Enquiries']];
+/* ── GROQ ────────────────────────────────────────────────── */
+const SITE_QUERY=`{
+  "settings":*[_id=="siteSettings"][0],
+  "nav":*[_id=="navigation"][0],
+  "band":*[_id=="memberBand"][0]
+}`;
+const PAGE_QUERY=`*[_type=="page" && slug.current==$slug][0]{
+  title,headerStyle,breadcrumb,showConditionsStrip,showMemberBand,header,content,seo
+}`;
+
+/* ── link helpers ────────────────────────────────────────── */
+const relFor=l=>l&&l.newTab?'noopener noreferrer':undefined;
+const targetFor=l=>l&&l.newTab?'_blank':undefined;
+function L({link,className,style,children}){
+  if(!link||!link.href)return null;
   return(
-    <header className={'top-nav '+(scrolled?'scrolled':'')}>
+    <a href={link.href} target={targetFor(link)} rel={relFor(link)} className={className} style={style}>
+      {children||link.label}{link.icon&&<Icon name={link.icon} size={13}/>}
+    </a>
+  );
+}
+function CTA({cta,size='',className=''}){
+  if(!cta||!cta.href)return null;
+  const style=cta.style||'cta';
+  return(
+    <a className={`btn btn-${style} ${size} ${className}`.trim()} href={cta.href} target={targetFor(cta)} rel={relFor(cta)}>
+      {cta.icon&&<Icon name={cta.icon} size={15}/>} {cta.label} <span className="arrow">→</span>
+    </a>
+  );
+}
+function SectionHead({heading,light}){
+  if(!heading)return null;
+  const{eyebrow,heading:h,intro}=heading;
+  if(!eyebrow&&!h&&!intro)return null;
+  return(
+    <div className="section-head">
+      {eyebrow&&<span className="eyebrow" style={light?{color:'var(--brand-ice)'}:undefined}>{eyebrow}</span>}
+      {h&&<h2 style={{marginTop:14}}>{h}</h2>}
+      {intro&&<p className="lead" style={{color:'var(--ink-muted)'}}>{intro}</p>}
+    </div>
+  );
+}
+/** Accepts any YouTube URL shape and returns the /embed/ form. */
+function youtubeEmbedUrl(url){
+  if(!url)return null;
+  const m=url.match(/(?:youtu\.be\/|\/live\/|\/embed\/|[?&]v=)([\w-]{6,})/);
+  return m?`https://www.youtube.com/embed/${m[1]}?rel=0&modestbranding=1`:url;
+}
+
+/* ── TopNav ──────────────────────────────────────────────── */
+function TopNav({nav,settings,current}){
+  const[open,setOpen]=useState(false);
+  const items=(nav&&nav.mainNav)||[];
+  const extras=(nav&&nav.mobileExtras)||[];
+  const loginLabel=(settings&&settings.memberLoginLabel)||'Member login';
+  const loginHref=(settings&&settings.memberLoginHref)||'login.html';
+  const isActive=href=>{
+    const f=(href||'').replace('.html','');
+    return f===current||(current==='home'&&f==='index');
+  };
+  return(
+    <header className="top-nav scrolled">
       <div className="nav-inner" style={{maxWidth:'var(--container-wide)',margin:'0 auto'}}>
-        <a className="nav-brand" href="index.html"><Logo height={44} mono={!scrolled}/></a>
+        <a className="nav-brand" href="index.html"><Logo height={44}/></a>
         <nav className="nav-links" aria-label="Primary">
-          {items.map(([id,lbl])=>(
-            <a key={id} href={id==='home'?'index.html':id+'.html'} className={'nav-link '+(current===id?'active':'')}>{lbl}</a>
+          {items.map(l=>(
+            <a key={l._key} href={l.href} target={targetFor(l)} rel={relFor(l)}
+               className={'nav-link '+(isActive(l.href)?'active':'')}>{l.label}</a>
           ))}
         </nav>
         <div className="nav-actions">
-          <a className="btn btn-cta btn-sm" href="login.html"><Icon name="lock" size={14}/> Member login <span className="arrow">→</span></a>
-          <button className="nav-burger" onClick={()=>setOpen(!open)} aria-label="Menu"><Icon name={open?'close':'menu'}/></button>
+          <a className="btn btn-cta btn-sm" href={loginHref}><Icon name="lock" size={14}/> {loginLabel} <span className="arrow">→</span></a>
+          <button className="nav-burger" onClick={()=>setOpen(!open)} aria-label="Menu" aria-expanded={open}>
+            <Icon name={open?'close':'menu'}/>
+          </button>
         </div>
       </div>
       {open&&(
         <div className="nav-mobile">
-          {items.map(([id,lbl])=>(
-            <a key={id} href={id==='home'?'index.html':id+'.html'} className={'nav-link '+(current===id?'active':'')}>{lbl}</a>
+          {items.concat(extras).map(l=>(
+            <a key={l._key} href={l.href} target={targetFor(l)} rel={relFor(l)}
+               className={'nav-link '+(isActive(l.href)?'active':'')}>{l.label}</a>
           ))}
-          <a href="shop.html" className={'nav-link '+(current==='shop'?'active':'')}>Used gear shop</a>
-          <a className="btn btn-cta" href="login.html"><Icon name="lock" size={14}/> Member login →</a>
+          <a className="btn btn-cta" href={loginHref}><Icon name="lock" size={14}/> {loginLabel} →</a>
         </div>
       )}
     </header>
   );
 }
 
-/* ── ConditionsStrip ─────────────────────────────────────── */
-function ConditionsStrip(){
-  const stats=[
-    {label:'Base depth',value:'142 cm',sub:'Bourke Street',icon:'snow'},
-    {label:'Last 24 h',value:'32 cm',sub:'fresh, light',icon:'cloud-snow'},
-    {label:'Temperature',value:'−4°',sub:'feels like −9°',icon:'thermometer'},
-    {label:'Lifts open',value:'14 / 22',sub:'wind-hold Summit',icon:'mountain'},
-  ];
-  return(
-    <div className="cond-strip">
-      <div className="container-wide cond-inner">
-        <div className="cond-meta">
-          <span className="chip"><span className="dot live"></span> Live</span>
-          <span style={{color:'var(--snow-400)',fontSize:13}}>Updated 7 min ago · 5 May 2026, 7:42 AM</span>
-        </div>
-        <div className="cond-stats">
-          {stats.map(s=>(
-            <div key={s.label} className="cond-stat">
-              <Icon name={s.icon} size={20}/>
-              <div><div className="cond-val">{s.value}</div><div className="cond-sub"><b>{s.label}</b> · {s.sub}</div></div>
-            </div>
-          ))}
-        </div>
-        <a className="btn btn-ghost btn-sm" href="https://www.mtbuller.com.au/winter/the-mountain/snow-report" target="_blank" rel="noopener noreferrer">Full snow report <Icon name="external" size={13}/></a>
-      </div>
-    </div>
-  );
-}
-
 /* ── MemberBand ──────────────────────────────────────────── */
-function MemberBand(){
+function MemberBand({band}){
   const[ref,vis]=useReveal();
+  if(!band)return null;
   return(
     <section className="member-band" ref={ref}>
       <div className="container member-band-inner">
         <div className={'reveal d0 '+(vis?'is-visible':'')}>
-          <span className="eyebrow" style={{color:'var(--brand-sky)'}}>Members</span>
-          <h2 style={{color:'#fff',marginTop:10}}>Already a Mitre member?</h2>
-          <p style={{color:'var(--snow-300)',maxWidth:'50ch',marginTop:8}}>Skip ahead. Bookings, season dates, members' notices — all in the portal.</p>
+          {band.eyebrow&&<span className="eyebrow" style={{color:'var(--brand-sky)'}}>{band.eyebrow}</span>}
+          <h2 style={{color:'#fff',marginTop:10}}>{band.heading}</h2>
+          {band.body&&<p style={{color:'var(--snow-300)',maxWidth:'50ch',marginTop:8}}>{band.body}</p>}
         </div>
         <div className={'reveal d1 member-band-cta '+(vis?'is-visible':'')}>
-          <a className="btn btn-cta btn-lg" href="login.html"><Icon name="lock" size={16}/> Login to bookings <span className="arrow">→</span></a>
-          <span style={{color:'var(--snow-400)',fontSize:13,marginTop:6}}>bookings.mitreskiclub.com</span>
+          <CTA cta={band.button} size="btn-lg"/>
+          {band.footnote&&<span style={{color:'var(--snow-400)',fontSize:13,marginTop:6}}>{band.footnote}</span>}
         </div>
       </div>
     </section>
   );
 }
 
-/* ── Reviews ─────────────────────────────────────────────── */
-const REVIEWS=[
-  {name:'James T.',init:'JT',rating:5,date:'March 2026',text:"The perfect alpine club. Small enough that everyone knows each other, big enough to have everything you need. We've been coming for six seasons and it just gets better."},
-  {name:'Priya S.',init:'PS',rating:5,date:'August 2025',text:"Ski-in, ski-out from Standard was everything. The drying room is brilliant — gear's always ready next morning. Warm, welcoming crew and the best positioned lodge on The Avenue."},
-  {name:'Marcus H.',init:'MH',rating:5,date:'July 2025',text:"As a family of four we were worried a club lodge might feel unwelcoming, but it was the opposite. Kids loved the TV room after dinner; we loved the fact that it wasn't a hotel."},
-  {name:'Anna W.',init:'AW',rating:5,date:'June 2025',text:"Did the working bee weekend in May and stayed for a ski trip in July. This is what skiing should feel like — communal, affordable, and a great laugh at the end of the day."},
-  {name:'Daniel C.',init:'DC',rating:5,date:'September 2024',text:"Brilliant value compared to resort accommodation. The lodge manager Anna runs an incredibly tight ship. Allocation system is fair, kitchen is well equipped. Can't fault it."},
-  {name:'Sophie R.',init:'SR',rating:4,date:'August 2024',text:"Excellent location at the end of The Avenue. Rooms are cosy — not luxury but totally comfortable. The view from the lounge on a clear morning is worth it alone."},
-];
-function ReviewsSection(){
+/* ── Footer ──────────────────────────────────────────────── */
+function Footer({nav,settings}){
+  const groups=(nav&&nav.footerGroups)||[];
+  const legal=(nav&&nav.legalLinks)||[];
+  const social=(settings&&settings.socialLinks)||[];
+  return(
+    <footer className="footer">
+      <div className="container">
+        <div className="footer-logo-bar">
+          <Logo height={48} mono/>
+          <div style={{flex:1,height:1,background:'rgba(255,255,255,.07)'}}/>
+        </div>
+        <div className="footer-grid">
+          <div className="footer-brand">
+            {settings&&settings.tagline&&(
+              <p style={{color:'var(--snow-400)',fontSize:14,lineHeight:1.7,maxWidth:'36ch',margin:0}}>{settings.tagline}</p>
+            )}
+            <div className="footer-social">
+              {social.map(s=>(
+                <a key={s._key} href={s.href} target={targetFor(s)} rel={relFor(s)} aria-label={s.label}>
+                  <Icon name={s.icon||'external'}/>
+                </a>
+              ))}
+            </div>
+          </div>
+          {groups.map(g=>(
+            <div key={g._key}>
+              <h5>{g.heading}</h5>
+              {(g.links||[]).map(l=>(
+                <a key={l._key} href={l.href} target={targetFor(l)} rel={relFor(l)}>
+                  {l.label}{l.icon&&<> <Icon name={l.icon} size={11}/></>}
+                </a>
+              ))}
+            </div>
+          ))}
+          {settings&&(
+            <div><h5>Contact</h5>
+              <p className="footer-contact">
+                {settings.organisationName}<br/>
+                {(settings.address||'').split('\n').map((line,i)=><React.Fragment key={i}>{line}<br/></React.Fragment>)}
+                <br/>
+                {settings.email&&<a href={`mailto:${settings.email}`}>{settings.email}</a>}
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="footer-bottom">
+          <span>{settings&&settings.copyright}</span>
+          <span>
+            {legal.map((l,i)=><React.Fragment key={l._key}>{i>0&&' · '}<a href={l.href}>{l.label}</a></React.Fragment>)}
+            {nav&&nav.builtByLine&&<> · {nav.builtByLine}</>}
+            {' · '}
+            <a href="#" onClick={e=>{e.preventDefault();try{localStorage.removeItem('mpa');}catch(_){}location.replace('gate.html');}}>Sign out of preview</a>
+          </span>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/* ══ BLOCKS ═══════════════════════════════════════════════ */
+
+function HeroBlock({b}){
+  const[loaded,setLoaded]=useState(false);
+  useEffect(()=>{const t=setTimeout(()=>setLoaded(true),120);return()=>clearTimeout(t);},[]);
+  const[statsRef,statsVis]=useReveal({th:.08});
+  const poster=sanityImageUrl(b.posterImage,{w:1600});
+  return(
+    <section className="hero">
+      <div className="hero-media">
+        {b.backgroundVideoUrl?(
+          <video autoPlay muted loop playsInline poster={poster} fetchPriority="high" style={{width:'100%',height:'100%',objectFit:'cover'}}>
+            <source src={b.backgroundVideoUrl} type="video/mp4"/>
+          </video>
+        ):poster&&<img src={poster} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
+      </div>
+      <div className="hero-overlay"/>
+      <div className="snow-particles" aria-hidden>
+        {[...Array(16)].map((_,i)=>(
+          <div key={i} className="snowflake" style={{left:`${(i*6.3+2)%100}%`,animationDelay:`${(i*.45)%6}s`,animationDuration:`${6+(i%4)}s`,width:`${3+(i%3)}px`,height:`${3+(i%3)}px`,opacity:.35+(i%3)*.15}}/>
+        ))}
+      </div>
+      <div className="hero-body container-wide">
+        <div style={{opacity:loaded?1:0,transform:loaded?'none':'translateY(24px)',transition:'opacity .9s .15s,transform .9s .15s'}} className="hero-grid">
+          <div>
+            {b.eyebrow&&<span className="eyebrow hero-eyebrow">{b.eyebrow}</span>}
+            <h1 className="hero-h1">{b.heading}{b.headingEmphasis&&<><br/><em>{b.headingEmphasis}</em></>}</h1>
+            {b.lead&&<p className="hero-lead">{b.lead}</p>}
+            <div className="hero-ctas">{(b.ctas||[]).map(c=><CTA key={c._key} cta={c} size="btn-lg"/>)}</div>
+          </div>
+          {b.sideImage&&(
+            <div>
+              <div className="hero-art-card">
+                <img src={sanityImageUrl(b.sideImage,{w:800})} alt={b.sideImage.alt||''}/>
+                {(b.sideImageTitle||b.sideImageSubtitle)&&(
+                  <div className="hero-art-badge">
+                    <Icon name="map-pin" size={16}/>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:13}}>{b.sideImageTitle}</div>
+                      <div style={{fontSize:11,color:'var(--snow-300)'}}>{b.sideImageSubtitle}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        {(b.stats||[]).length>0&&(
+          <div className="hero-stats" ref={statsRef}>
+            {b.stats.map((s,i)=>(
+              <div key={s._key} className={'hero-stat reveal d'+i+' '+(statsVis?'is-visible':'')}><b>{s.value}</b><span>{s.label}</span></div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="scroll-cue" aria-hidden><span>Scroll</span><div className="scroll-cue-line"/></div>
+    </section>
+  );
+}
+
+function ConditionsStripBlock({b}){
+  if(!b)return null;
+  return(
+    <div className="cond-strip">
+      <div className="container-wide cond-inner">
+        <div className="cond-meta">
+          {b.showLiveChip&&<span className="chip"><span className="dot live"></span> Live</span>}
+          {b.updatedLabel&&<span style={{color:'var(--snow-400)',fontSize:13}}>{b.updatedLabel}</span>}
+        </div>
+        <div className="cond-stats">
+          {(b.stats||[]).map(s=>(
+            <div key={s._key} className="cond-stat">
+              <Icon name={s.icon||'snow'} size={20}/>
+              <div><div className="cond-val">{s.value}</div><div className="cond-sub"><b>{s.label}</b>{s.detail&&<> · {s.detail}</>}</div></div>
+            </div>
+          ))}
+        </div>
+        <L link={b.reportLink} className="btn btn-ghost btn-sm"/>
+      </div>
+    </div>
+  );
+}
+
+function RichTextBlock({b}){
+  return(
+    <section className={'section '+(b.tintedBackground?'section-tint':'')}>
+      <div className={b.width==='wide'?'container-wide':'container-wide article-wrap'}>
+        <R><SectionHead heading={b.heading}/></R>
+        <R d={1}><PortableText blocks={b.content}/></R>
+      </div>
+    </section>
+  );
+}
+
+function FeatureGridBlock({b}){
+  return(
+    <section className={'section '+(b.tintedBackground?'section-tint':'')}>
+      <div className="container-wide">
+        <R><SectionHead heading={b.heading}/></R>
+        <div className="feat-grid">
+          {(b.features||[]).map((f,i)=>(
+            <R key={f._key} d={i}>
+              <div className="feat">
+                {f.badge&&<span className="chip" style={{marginBottom:'var(--sp-3)'}}>{f.badge}</span>}
+                {f.icon&&<div className="icon-wrap"><Icon name={f.icon} size={20}/></div>}
+                <h3>{f.title}</h3>
+                {f.body&&<p>{f.body}</p>}
+              </div>
+            </R>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function QuoteBlock({b}){
+  const bg=sanityImageUrl(b.backgroundImage,{w:2000});
+  return(
+    <div className="full-bleed" style={bg?{backgroundImage:`url(${bg})`}:undefined}>
+      <div className="full-bleed-overlay"/>
+      <div className="container full-bleed-content">
+        {b.eyebrow&&<R><span className="eyebrow" style={{color:'var(--brand-ice)'}}>{b.eyebrow}</span></R>}
+        <R d={1}><h2 className="editorial-quote">{(b.quote||'').split('\n').map((line,i)=><React.Fragment key={i}>{i>0&&<br/>}{line}</React.Fragment>)}</h2></R>
+        {b.attribution&&<R d={2}><div style={{color:'var(--snow-300)',marginTop:'var(--sp-4)',fontSize:13,letterSpacing:'.1em',textTransform:'uppercase'}}>{b.attribution}</div></R>}
+      </div>
+    </div>
+  );
+}
+
+function CtaBandBlock({b}){return <MemberBand band={b}/>;}
+
+function NoticeBlock({b}){
+  return(
+    <section className="section" style={{paddingBottom:0}}>
+      <div className="container-wide">
+        <R>
+          <div className="shop-notice">
+            <Icon name={b.icon||'info'} size={18} stroke={2}/>
+            <div><PortableText blocks={b.content}/></div>
+          </div>
+        </R>
+      </div>
+    </section>
+  );
+}
+
+function ForecastBlock({b}){
+  return(
+    <section className="section">
+      <div className="container-wide">
+        <R><SectionHead heading={b.heading}/></R>
+        <R d={1}>
+          <div className="forecast-grid">
+            {(b.days||[]).map(d=>(
+              <div key={d._key} className="forecast-card">
+                <div style={{fontSize:11,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--ink-soft)',fontWeight:700}}>{d.day}</div>
+                <div style={{fontFamily:'var(--font-display)',fontWeight:500,fontSize:22,margin:'4px 0'}}>{d.date}</div>
+                <div style={{margin:'12px 0',color:'var(--brand-glacier)'}}><Icon name={d.icon||'snow'} size={28} stroke={1.4}/></div>
+                <div style={{fontSize:14,fontWeight:600}}>{d.high}° / <span className="muted">{d.low}°</span></div>
+                <div style={{fontSize:12,color:'var(--ink-muted)',marginTop:4}}>{d.snowCm} cm</div>
+              </div>
+            ))}
+          </div>
+        </R>
+      </div>
+    </section>
+  );
+}
+
+function ReviewsBlock({b}){
   const[ref,vis]=useReveal({th:.05});
   return(
     <section className="reviews-section" ref={ref}>
       <div className="container-wide">
         <div className="reviews-header">
           <div>
-            <span className="eyebrow">What members &amp; guests say</span>
-            <h2 style={{marginTop:14}}>Sixty winters of happy skiers.</h2>
+            {b.heading&&b.heading.eyebrow&&<span className="eyebrow">{b.heading.eyebrow}</span>}
+            {b.heading&&b.heading.heading&&<h2 style={{marginTop:14}}>{b.heading.heading}</h2>}
           </div>
           <div className="reviews-rating-block">
-            <div className="reviews-score">4.8</div>
+            <div className="reviews-score">{b.score}</div>
             <div>
               <Stars n={5}/>
-              <div style={{fontSize:13,color:'var(--ink-muted)',marginTop:5}}>Based on Google reviews</div>
-              <a href="https://www.google.com/maps/place/Mitre+Ski+Club/data=!4m2!3m1!1s0x0:0xf93f066352e269fc" target="_blank" rel="noopener noreferrer" style={{display:'inline-flex',alignItems:'center',gap:6,marginTop:10,fontSize:13,color:'var(--ink-muted)',borderBottom:'1px solid var(--line)',paddingBottom:2}}>
-                View all reviews <Icon name="arrow-up-right" size={13}/>
-              </a>
+              {b.scoreCaption&&<div style={{fontSize:13,color:'var(--ink-muted)',marginTop:5}}>{b.scoreCaption}</div>}
+              {b.allReviewsLink&&(
+                <L link={b.allReviewsLink} style={{display:'inline-flex',alignItems:'center',gap:6,marginTop:10,fontSize:13,color:'var(--ink-muted)',borderBottom:'1px solid var(--line)',paddingBottom:2}}>
+                  {b.allReviewsLink.label} <Icon name="arrow-up-right" size={13}/>
+                </L>
+              )}
             </div>
           </div>
         </div>
         <div className="reviews-grid">
-          {REVIEWS.map((r,i)=>(
-            <R key={r.name} d={i%3}>
+          {(b.reviews||[]).map((r,i)=>(
+            <R key={r._key} d={i%3}>
               <div className="review-card">
                 <div className="review-card-top">
-                  <div className="review-avatar">{r.init}</div>
+                  <div className="review-avatar">{r.initials}</div>
                   <div>
                     <div style={{fontWeight:600,fontSize:14,color:'var(--ink)'}}>{r.name}</div>
                     <Stars n={r.rating} size={12}/>
@@ -361,8 +614,7 @@ function ReviewsSection(){
                 <blockquote>"{r.text}"</blockquote>
                 <div className="review-card-meta">
                   <span>{r.date}</span>
-                  <span style={{opacity:.35}}>·</span>
-                  <span>Verified member</span>
+                  {r.attribution&&<><span style={{opacity:.35}}>·</span><span>{r.attribution}</span></>}
                 </div>
               </div>
             </R>
@@ -373,385 +625,713 @@ function ReviewsSection(){
   );
 }
 
-/* ── Footer ──────────────────────────────────────────────── */
-function Footer(){
+function InfoSectionsBlock({b}){
+  const sections=b.sections||[];
+  const toc=sections.map(s=>[s.anchor&&s.anchor.current,s.title]).filter(x=>x[0]);
+  const[active,setActive]=useState(toc.length?toc[0][0]:null);
+  useEffect(()=>{
+    const onS=()=>{
+      let cur=toc.length?toc[0][0]:null;
+      for(const[id] of toc){const el=document.getElementById(id);if(el&&el.getBoundingClientRect().top<=116)cur=id;}
+      setActive(cur);
+    };
+    window.addEventListener('scroll',onS,{passive:true});return()=>window.removeEventListener('scroll',onS);
+    // eslint-disable-next-line
+  },[sections.length]);
   return(
-    <footer className="footer">
-      <div className="container">
-        <div className="footer-logo-bar">
-          <Logo height={48} mono/>
-          <div style={{flex:1,height:1,background:'rgba(255,255,255,.07)'}}/>
-        </div>
-        <div className="footer-grid">
-          <div className="footer-brand">
-            <p style={{color:'var(--snow-400)',fontSize:14,lineHeight:1.7,maxWidth:'36ch',margin:0}}>A members' lodge on Mt Buller, Victoria. Skiing, eating and arguing over dinner since 1962.</p>
-            <div className="footer-social">
-              <a href="https://www.instagram.com/mitreskiclub/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><Icon name="instagram"/></a>
-              <a href="https://www.facebook.com/mitreskiclub/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><Icon name="facebook"/></a>
-            </div>
-          </div>
-          <div><h5>Visit</h5><a href="index.html">Home</a><a href="lodge.html">The Lodge</a><a href="buller.html">Mt Buller</a><a href="directions.html">Directions</a><a href="https://www.mtbuller.com.au/winter/weather/web-cams" target="_blank" rel="noopener noreferrer">Snow cams <Icon name="external" size={11}/></a></div>
-          <div><h5>Members</h5><a href="login.html">Login to bookings</a><a href="gallery.html">Members' gallery</a><a href="shop.html">Used gear shop</a><a href="#">Working bee dates</a><a href="#">AGM &amp; minutes</a></div>
-          <div><h5>Join</h5><a href="news.html">News &amp; notices</a><a href="enquiries.html">Become a member</a><a href="enquiries.html">Make an enquiry</a></div>
-          <div><h5>Contact</h5>
-            <p className="footer-contact">Mitre Lodge<br/>14 The Avenue<br/>Mt Buller VIC 3723<br/><br/><a href="mailto:secretary@mitreskiclub.com">secretary@mitreskiclub.com</a></p>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          <span>© 2026 Mitre Ski Club Inc.</span>
-          <span><a href="#">Privacy</a> · <a href="#">Terms</a> · Built by the Web Committee · <a href="#" onClick={e=>{e.preventDefault();try{localStorage.removeItem('mpa');}catch(_){}location.replace('gate.html');}}>Sign out of preview</a></span>
+    <section className="section">
+      <div className="container-wide info-layout">
+        <aside className="info-toc">
+          <h5>{b.sidebarTitle||'On this page'}</h5>
+          {toc.map(([id,lbl])=><a key={id} href={'#'+id} className={active===id?'active':''}>{lbl}</a>)}
+        </aside>
+        <div>
+          {sections.map(s=>(
+            <R key={s._key}>
+              <div className="info-block" id={s.anchor&&s.anchor.current}>
+                <h2>{s.title}</h2>
+                <PortableText blocks={s.content}/>
+                {s.image&&<Photo className="info-photo" src={sanityImageUrl(s.image,{w:1000})} label={s.image.alt}/>}
+                {(s.cards||[]).length>0&&(
+                  <div className="feat-grid" style={{marginTop:'var(--sp-6)'}}>
+                    {s.cards.map(c=>(
+                      <div key={c._key} className="feat" style={{padding:'var(--sp-5)'}}>
+                        <h4>{c.title}</h4>
+                        {c.detail&&<p className="muted" style={{fontSize:14,margin:'6px 0 0'}}>{c.detail}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {s.button&&<CTA cta={s.button} size="btn-sm" className="" />}
+              </div>
+            </R>
+          ))}
         </div>
       </div>
-    </footer>
+    </section>
   );
 }
 
-
-/* ── HOME ────────────────────────────────────────────────── */
-const LATEST_POSTS_QUERY=`*[_type=="post"]|order(publishedAt desc)[0...3]{_id,title,"slug":slug.current,category,publishedAt,excerpt,mainImage{alt,asset}}`;
-function HomePage(){
-  const[loaded,setLoaded]=useState(false);
-  useEffect(()=>{const t=setTimeout(()=>setLoaded(true),120);return()=>clearTimeout(t);},[]);
-  const[statsRef,statsVis]=useReveal({th:.08});
-  const[whyRef,whyVis]=useReveal({th:.06});
-  const[latestPosts,postsLoading]=useSanityQuery(LATEST_POSTS_QUERY,{},[]);
-
+function ContactListBlock({b}){
   return(
-    <main>
-      <div style={{paddingTop:'var(--nav-h)'}}>
-        <ConditionsStrip/>
-      </div>
-
-      {/* ── HERO ── */}
-      <section className="hero">
-        <div className="hero-media">
-          <video autoPlay muted loop playsInline poster="assets/photo-resort-crowd.webp" fetchPriority="high" style={{width:'100%',height:'100%',objectFit:'cover'}}>
-            <source src="assets/hero1-opt.mp4" type="video/mp4"/>
-            <source src="assets/hero2-opt.mp4" type="video/mp4"/>
-          </video>
-        </div>
-        <div className="hero-overlay"/>
-        <div className="snow-particles" aria-hidden>
-          {[...Array(16)].map((_,i)=>(
-            <div key={i} className="snowflake" style={{left:`${(i*6.3+2)%100}%`,animationDelay:`${(i*.45)%6}s`,animationDuration:`${6+(i%4)}s`,width:`${3+(i%3)}px`,height:`${3+(i%3)}px`,opacity:.35+(i%3)*.15}}/>
+    <R>
+      <div>
+        {b.heading&&b.heading.heading&&<h2>{b.heading.heading}</h2>}
+        {b.heading&&b.heading.intro&&<p className="muted" style={{maxWidth:'40ch',marginBottom:'var(--sp-6)'}}>{b.heading.intro}</p>}
+        <div className="contact-list">
+          {(b.contacts||[]).map(c=>(
+            <div key={c._key} className="contact-item"><span>{c.label}</span><span className="val">{c.value}</span></div>
           ))}
         </div>
-        <div className={'hero-body container-wide'}>
-          <div style={{opacity:loaded?1:0,transform:loaded?'none':'translateY(24px)',transition:'opacity .9s .15s,transform .9s .15s'}} className="hero-grid">
-            <div>
-              <span className="eyebrow hero-eyebrow">Mt Buller · Est. 1962</span>
-              <h1 className="hero-h1">Your home<br/><em>on the mountain.</em></h1>
-              <p className="hero-lead">A members' lodge at the end of The Avenue. Ski straight in off Standard, walk five minutes to the lifts, and meet everyone over dinner.</p>
-              <div className="hero-ctas">
-                <a className="btn btn-cta btn-lg" href="login.html"><Icon name="lock" size={16}/> Member login <span className="arrow">→</span></a>
-                <a className="btn btn-ghost-light btn-lg" href="enquiries.html">Become a member</a>
-              </div>
-            </div>
-            <div>
-              <div className="hero-art-card">
-                <Pic src="assets/photo-snowboarder-pov.jpg" alt="Snowboarder's view at Mt Buller" priority/>
-                <div className="hero-art-badge">
-                  <Icon name="map-pin" size={16}/>
-                  <div><div style={{fontWeight:600,fontSize:13}}>14 The Avenue</div><div style={{fontSize:11,color:'var(--snow-300)'}}>Mt Buller · Last lodge on the road</div></div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="hero-stats" ref={statsRef}>
-            {[['1962','Founded'],['40+','Beds · 12 rooms'],['5 min','Walk to lifts'],['60+','Winters on Buller']].map(([n,l],i)=>(
-              <div key={i} className={'hero-stat reveal d'+i+' '+(statsVis?'is-visible':'')}><b>{n}</b><span>{l}</span></div>
-            ))}
-          </div>
-        </div>
-        <div className="scroll-cue" aria-hidden><span>Scroll</span><div className="scroll-cue-line"/></div>
-      </section>
+      </div>
+    </R>
+  );
+}
 
-      {/* ── SIXTY WINTERS ── */}
-      <div className="full-bleed" style={{backgroundImage:"url(assets/photo-resort-crowd.webp)"}}>
-        <div className="full-bleed-overlay"/>
-        <div className="container full-bleed-content">
-          <R><span className="eyebrow" style={{color:'var(--brand-ice)'}}>Sixty winters in</span></R>
-          <R d={1}><h2 className="editorial-quote">"Last lodge on the Avenue.<br/>Ski straight in off Standard."</h2></R>
-          <R d={2}><div style={{color:'var(--snow-300)',marginTop:'var(--sp-4)',fontSize:13,letterSpacing:'.1em',textTransform:'uppercase'}}>— Mitre Ski Club · Est. 1962</div></R>
+function LinkListBlock({b}){
+  return(
+    <R d={1}>
+      <div>
+        {b.heading&&b.heading.heading&&<h2>{b.heading.heading}</h2>}
+        {b.heading&&b.heading.intro&&<p className="muted" style={{maxWidth:'40ch',marginBottom:'var(--sp-6)'}}>{b.heading.intro}</p>}
+        <div className="link-list">
+          {(b.links||[]).map(l=>(
+            <a key={l._key} href={l.href} target={targetFor(l)} rel={relFor(l)}>
+              <span>{l.label}</span><Icon name="arrow-up-right" size={16}/>
+            </a>
+          ))}
         </div>
       </div>
+    </R>
+  );
+}
 
-      {/* ── WHY MITRE ── */}
-      <section className="section" ref={whyRef}>
-        <div className="container-wide">
-          <R><div className="section-head"><span className="eyebrow">Why members stay</span><h2 style={{marginTop:14}}>A small lodge, run by its members.</h2><p className="lead" style={{color:'var(--ink-muted)'}}>Sixty-odd years of working bees, dinners, snow days and Sunday departures. Mitre is a club, not a hotel — and it shows.</p></div></R>
-          <div className="feat-grid">
-            {[
-              {icon:'mountain',title:'Ski-in, ski-out',body:"The last lodge on The Avenue, with Standard at the front door and the beginner area five minutes' walk away."},
-              {icon:'users',title:'Communal by design',body:"Twelve rooms, shared kitchen, big drying room, and a TV room that gets loud after a powder day."},
-              {icon:'calendar',title:'Open year-round',body:"Winter is the big show, but the lodge is also available for groups in summer — mountain biking, walking, the family."},
-            ].map((f,i)=>(
-              <R key={i} d={i}>
-                <div className="feat"><div className="icon-wrap"><Icon name={f.icon} size={20}/></div><h3>{f.title}</h3><p>{f.body}</p></div>
-              </R>
-            ))}
-          </div>
+function LinkCardsBlock({b}){
+  return(
+    <div>
+      {b.heading&&b.heading.heading&&<h2>{b.heading.heading}</h2>}
+      {b.heading&&b.heading.intro&&<p className="muted" style={{marginTop:'var(--sp-3)',marginBottom:'var(--sp-2)'}}>{b.heading.intro}</p>}
+      <div className="useful-links-grid">
+        {(b.cards||[]).map((c,i)=>(
+          <R key={c._key} d={i%3}>
+            <a href={c.href} target="_blank" rel="noopener noreferrer" className="useful-link-card">
+              <div className="icon-wrap"><Icon name={c.icon||'external'} size={18}/></div>
+              <h4>{c.title}</h4>
+              {c.subtitle&&<p>{c.subtitle}</p>}
+            </a>
+          </R>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AddressBlock({b}){
+  return(
+    <div style={{marginTop:'var(--sp-10)',padding:'var(--sp-6)',background:'var(--bg-elev)',border:'1px solid var(--line)',borderRadius:'var(--r-lg)'}}>
+      {b.heading&&<h3 style={{marginBottom:'var(--sp-3)'}}>{b.heading}</h3>}
+      <div style={{color:'var(--ink-muted)',fontSize:15,lineHeight:1.8}}><PortableText blocks={b.content}/></div>
+    </div>
+  );
+}
+
+function StepsBlock({b}){
+  const tabs=b.tabs||[];
+  const[tab,setTab]=useState(0);
+  const steps=(tabs[tab]&&tabs[tab].steps)||[];
+  return(
+    <div>
+      {b.heading&&b.heading.heading&&<h2>{b.heading.heading}</h2>}
+      {tabs.length>1&&(
+        <div className="transport-tabs" style={{marginTop:'var(--sp-5)'}}>
+          {tabs.map((t,i)=>(
+            <button key={t._key} className={'transport-tab '+(tab===i?'active':'')} onClick={()=>setTab(i)}>
+              {t.icon&&<Icon name={t.icon} size={15}/>} {t.label}
+            </button>
+          ))}
         </div>
-      </section>
+      )}
+      {steps.map((s,i)=>(
+        <div key={s._key} className="dir-step">
+          <div className="dir-num">{i+1}</div>
+          <div><h4>{s.title}</h4><p>{s.body}</p></div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-      {/* ── NEWS PREVIEW ── */}
-      <section className="section section-tint">
-        <div className="container-wide">
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',flexWrap:'wrap',gap:16,marginBottom:'var(--sp-10)'}}>
-            <R><div className="section-head" style={{marginBottom:0}}><span className="eyebrow">Latest from the lodge</span><h2 style={{marginTop:14}}>What's happening on the mountain</h2></div></R>
-            <R d={1}><a className="btn btn-ghost btn-sm" href="news.html">All news <Icon name="arrow" size={14}/></a></R>
+/* ── third-party embed blocks ────────────────────────────── */
+
+function YoutubeBlock({b}){
+  const src=youtubeEmbedUrl(b.url);
+  return(
+    <section className={'section '+(b.tintedBackground?'section-tint':'')}>
+      <div className="container-wide">
+        <R><SectionHead heading={b.heading}/></R>
+        <R d={1}>
+          <div className="cam-embed" style={b.height?{height:b.height}:undefined}>
+            <iframe src={src} title={b.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen loading="lazy"/>
           </div>
-          <R>
-            {postsLoading?(
-              <div className="story-rail">{[0,1,2].map(i=><div key={i} className="news-card skeleton"/>)}</div>
-            ):!latestPosts||latestPosts.length===0?(
-              <p className="muted">No news posted yet — check back soon.</p>
-            ):(
-              <div className="story-rail">
-                {latestPosts.map((p,i)=>(
-                  <article key={p._id} className="news-card" onClick={()=>onNav('article',p.slug)} style={{cursor:'pointer'}}>
+        </R>
+        {b.moreLink&&(
+          <R d={2}>
+            <div style={{display:'flex',justifyContent:'flex-end',marginTop:'var(--sp-4)'}}>
+              <L link={b.moreLink} className="btn btn-ghost btn-sm"/>
+            </div>
+          </R>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function MapBlock({b}){
+  return(
+    <R>
+      <div className={'map-embed '+(b.grayscale===false?'map-embed--colour':'')}>
+        <iframe src={b.embedUrl} title={b.title} allowFullScreen="" loading="lazy" referrerPolicy="no-referrer-when-downgrade"/>
+      </div>
+    </R>
+  );
+}
+
+function InstagramBlock({b}){
+  return(
+    <R>
+      <div className="gallery-insta-cta">
+        <div style={{fontSize:32,marginBottom:'var(--sp-3)'}}>📸</div>
+        <h3>{b.heading}</h3>
+        {b.body&&<p style={{color:'rgba(255,255,255,.8)',margin:'0 auto var(--sp-6)',maxWidth:'44ch'}}>{b.body}</p>}
+        <a href={`https://www.instagram.com/${b.handle}/`} target="_blank" rel="noopener noreferrer" className="btn btn-sm"
+           style={{background:'rgba(255,255,255,.2)',color:'#fff',border:'1px solid rgba(255,255,255,.3)'}}>
+          <Icon name="instagram" size={15}/> @{b.handle}
+        </a>
+        {b.footnote&&(
+          <div style={{color:'rgba(255,255,255,.5)',marginTop:'var(--sp-4)',fontSize:13}}>
+            <PortableText blocks={b.footnote}/>
+          </div>
+        )}
+      </div>
+    </R>
+  );
+}
+
+function IframeBlock({b}){
+  return(
+    <section className="section">
+      <div className="container-wide">
+        <R><SectionHead heading={b.heading}/></R>
+        <R d={1}>
+          <div className="cam-embed" style={b.height?{height:b.height}:undefined}>
+            <iframe src={b.url} title={b.title} allowFullScreen loading="lazy"/>
+            <div className="cam-embed-fallback">
+              <Icon name="external" size={40} stroke={1.3}/>
+              <p style={{margin:'var(--sp-3) 0 var(--sp-5)',color:'var(--ink-muted)',fontSize:15}}>This content can't be shown here.</p>
+              <L link={b.fallbackLink} className="btn btn-primary btn-sm"/>
+            </div>
+          </div>
+        </R>
+      </div>
+    </section>
+  );
+}
+
+function ServiceLinkBlock({b}){
+  return(
+    <section className="section">
+      <div className="container-wide">
+        <R>
+          <div className="feat" style={{maxWidth:640}}>
+            {b.icon&&<div className="icon-wrap"><Icon name={b.icon} size={20}/></div>}
+            <h3>{b.heading}</h3>
+            {b.body&&<p>{b.body}</p>}
+            <div style={{marginTop:'var(--sp-4)'}}><CTA cta={b.button} size="btn-sm"/></div>
+            {b.footnote&&<p className="muted" style={{fontSize:13,marginTop:'var(--sp-3)'}}>{b.footnote}</p>}
+          </div>
+        </R>
+      </div>
+    </section>
+  );
+}
+
+/* ── collection blocks ───────────────────────────────────── */
+
+const POST_FIELDS=`_id,title,"slug":slug.current,category,publishedAt,readingTimeMinutes,excerpt,mainImage{alt,asset}`;
+
+function NewsListBlock({b}){
+  const archive=b.layout==='archive';
+  const q=archive
+    ?`*[_type=="post"]|order(publishedAt desc){${POST_FIELDS}}`
+    :`*[_type=="post"]|order(publishedAt desc)[0...${Math.max(1,Math.min(12,b.limit||3))}]{${POST_FIELDS}}`;
+  const[posts,loading]=useSanityQuery(q,{},[b._key]);
+  const[filter,setFilter]=useState('All');
+  const list=posts||[];
+
+  if(archive){
+    const featured=list[0];
+    const rest=list.slice(1);
+    const tags=['All',...new Set(list.map(p=>p.category))];
+    const visible=rest.filter(p=>filter==='All'||p.category===filter);
+    return(
+      <section className={'section '+(b.tintedBackground?'section-tint':'')}>
+        <div className="container-wide">
+          {loading?<p className="muted">Loading news…</p>:!featured?<p className="muted">No news posted yet — check back soon.</p>:(<>
+            <R>
+              <article className="news-featured" onClick={()=>onNav('article',featured.slug)} style={{cursor:'pointer'}}>
+                <Photo src={sanityImageUrl(featured.mainImage,{w:960})} label={featured.mainImage&&featured.mainImage.alt}/>
+                <div className="news-featured-body">
+                  <div className="row" style={{marginBottom:12}}>
+                    <span className="chip">{featured.category}</span>
+                    <span className="muted" style={{fontSize:13}}>{formatDate(featured.publishedAt)} · {readingTimeLabel(featured.readingTimeMinutes)} read</span>
+                  </div>
+                  <h2>{featured.title}</h2><p className="lead">{featured.excerpt}</p>
+                  <div style={{marginTop:'var(--sp-5)'}}><span className="btn btn-link">Read the full report <Icon name="arrow" size={14}/></span></div>
+                </div>
+              </article>
+            </R>
+            {b.showFilters!==false&&(
+              <R><div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:'var(--sp-6)'}}>
+                {tags.map(t=><button key={t} className={'btn btn-sm '+(filter===t?'btn-primary':'btn-ghost')} onClick={()=>setFilter(t)}>{t}</button>)}
+              </div></R>
+            )}
+            <div className="news-grid">
+              {visible.map((p,i)=>(
+                <R key={p._id} d={i%3}>
+                  <article className="news-card" onClick={()=>onNav('article',p.slug)} style={{cursor:'pointer'}}>
                     <Photo src={sanityImageUrl(p.mainImage,{w:640})} label={p.mainImage&&p.mainImage.alt} ratio="16/10"/>
                     <div className="news-card-body">
                       <div className="meta"><span className="chip" style={{marginRight:8}}>{p.category}</span>{formatDate(p.publishedAt)}</div>
                       <h3>{p.title}</h3><p>{p.excerpt}</p>
-                      <span className="more">Read {i===0?'article':''} <Icon name="arrow" size={14}/></span>
+                      <span className="more">Read <Icon name="arrow" size={14}/></span>
                     </div>
                   </article>
-                ))}
-              </div>
-            )}
-          </R>
-        </div>
-      </section>
-
-      <ReviewsSection/>
-      <MemberBand/>
-      <Footer/>
-    </main>
-  );
-}
-
-/* ── LODGE ───────────────────────────────────────────────── */
-function LodgePage(){
-  const toc=[['about','About the lodge'],['community','Community spirit'],['location','Location'],['facilities','Facilities'],['check-in','Check-in'],['check-out','Check-out'],['bring','What to bring'],['getting-there','Getting there'],['summer','Outside ski season']];
-  const[active,setActive]=useState('about');
-  useEffect(()=>{
-    const onS=()=>{let cur=toc[0][0];for(const[id] of toc){const el=document.getElementById(id);if(el&&el.getBoundingClientRect().top<=116)cur=id;}setActive(cur);};
-    window.addEventListener('scroll',onS,{passive:true});return()=>window.removeEventListener('scroll',onS);
-  },[]);
-  const blocks=[
-    {id:'about',title:'About the lodge',content:<><p>Mitre Lodge has been on Mt Buller since 1962. We're a small, friendly club run by its members. The lodge holds about forty across twelve rooms — a mix of doubles, singles and bunks, with shared bathrooms and a big communal kitchen.</p><Photo className="info-photo" src="assets/photo-chairlift-golden.jpg" label="Mt Buller lifts"/></>},
-    {id:'community',title:'Community spirit',content:<p>Mitre is communal by design. Members get involved with meetings and working bees; the lodge manager and members give a warm welcome as new guests arrive. There are smiles in the morning and stories at the end of the day.</p>},
-    {id:'location',title:'Ski-in / Ski-out location',content:<p>Mitre is at the end of The Avenue, next to the Navy Lodge. Being the last lodge on the road, the views are excellent and access is straight onto Standard (intermediate). Bus Stop No. 9 is two lodges down.</p>},
-    {id:'facilities',title:'Facilities',content:<><p>Communal lounge rooms, TV rooms, dining and a large drying room. Twelve bedrooms — 2 to 5-berth, with combinations of doubles, singles and bunks. Each bedroom has a hand basin. The kitchen has a large fridge, gas and electric stoves, ovens, microwaves, dishwashers.</p><div className="feat-grid" style={{marginTop:'var(--sp-6)'}}>{[['12 bedrooms','2–5 berths · all with hand basins'],['Shared kitchen','Allocated fridge & pantry shelves'],['Drying room','Boots off in the foyer, please']].map(([h,s])=><div key={h} className="feat" style={{padding:'var(--sp-5)'}}><h4>{h}</h4><p className="muted" style={{fontSize:14,margin:'6px 0 0'}}>{s}</p></div>)}</div></>},
-    {id:'check-in',title:'Check-in',content:<p>Ring the doorbell or use the security code in your booking confirmation email. Ski boots go in the drying room before heading into the lodge. Your room allocation will be on the whiteboard in the foyer. Changeover is by 5pm.</p>},
-    {id:'check-out',title:'Check-out',content:<p>You're responsible for cleaning your room — wipe the basin and tiles, vacuum the carpet. Clear your pantry and fridge shelves. All done by 5pm. Taxi: (03) 5777 6070.</p>},
-    {id:'bring',title:'What to bring',content:<><p>Doonas and pillows are supplied. Linen isn't — please bring a bottom sheet, top sheet (or sleeping bag), pillow case and a towel.</p><p>Tea, coffee, sugar, jam, honey, sauces and mustards are provided. Bring your own food and drinks. Mansfield IGA delivers: (03) 5775 2014.</p></>},
-    {id:'getting-there',title:'Getting there',content:<><p>Drive up and park, or take the bus from Mansfield/Merrijig. Fees are paid at the Merrijig gate. Chains must be carried until end of season — hire them in Mansfield.</p><p>Oversnow taxis: Mon–Thu 7am–midnight, Fri 7am–3am, Sat 7am–2am, Sun 7am–midnight. Tell the driver it's next to Navy at the end of The Avenue.</p><a className="btn btn-ghost btn-sm" href="directions.html" style={{marginTop:'var(--sp-4)',display:'inline-flex'}}><Icon name="map-pin" size={14}/> Full directions &amp; map</a></>},
-    {id:'summer',title:'Outside ski season',content:<p>Mountain biking, bushwalking, horse riding, scenic chairlift rides, summer events. The lodge is available for individuals or group bookings out of season. We'll send keys and walk you through opening and security.</p>},
-  ];
-  return(
-    <main>
-      <section className="page-header">
-        <div className="page-header-bg"><Pic src="assets/photo-resort-crowd.jpg" alt=""/><div className="page-header-overlay"/></div>
-        <div className="container-wide page-header-inner">
-          <div className="crumbs"><a href="index.html">Home</a><span>/</span><span>The Lodge</span></div>
-          <R><span className="eyebrow" style={{color:'var(--brand-ice)'}}>A guide for members &amp; guests</span>
-          <h1 style={{marginTop:14,color:'#fff'}}>The Lodge.</h1>
-          <p style={{fontFamily:'var(--font-editorial)',fontStyle:'italic',fontSize:'var(--fs-24)',color:'rgba(255,255,255,.75)',marginTop:'var(--sp-5)',maxWidth:'56ch'}}>Last lodge on The Avenue. Ski straight in, walk five minutes to the lifts.</p></R>
-          <div className="hdr-meta">{[['12 rooms','2–5 berths'],['~40 beds','doonas supplied'],['Bus stop 9','two lodges away'],['Wi-Fi','browsing only']].map(([b,s])=><div key={b}><b>{b}</b>{s}</div>)}</div>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container-wide info-layout">
-          <aside className="info-toc">
-            <h5>On this page</h5>
-            {toc.map(([id,lbl])=><a key={id} href={'#'+id} className={active===id?'active':''}>{lbl}</a>)}
-          </aside>
-          <div>{blocks.map(b=><R key={b.id}><div className="info-block" id={b.id}><h2>{b.title}</h2>{b.content}</div></R>)}</div>
-        </div>
-      </section>
-      <MemberBand/><Footer/>
-    </main>
-  );
-}
-
-/* ── BULLER ──────────────────────────────────────────────── */
-function BullerPage(){
-  const contacts=[['Lift tickets, Ski &amp; Snowboard School','(03) 5777 7800'],['Mt Buller taxis','(03) 5777 6070'],['Resort Management (gate, parking)','(03) 5777 6077'],['Towing &amp; chain fitting','0427 077 572'],['Ski Patrol','(03) 5777 7808'],['Emergencies (Fire / Ambo / Police)','000'],['Buller Medical Centre (winter)','(03) 5777 6185'],['Mansfield IGA (delivers to Mitre)','(03) 5775 2014']];
-  const links=[
-    {label:'Mt Buller website',url:'https://www.mtbuller.com.au/'},
-    {label:'Resort entry &amp; taxis',url:'https://www.mtbuller.com.au/winter/plan-your-trip/getting-here'},
-    {label:'Lift passes',url:'https://www.mtbuller.com.au/winter/tickets-passes/lift-passes'},
-    {label:'Snow cams',url:'https://www.mtbuller.com.au/winter/weather/web-cams'},
-    {label:'Full snow report',url:'https://www.mtbuller.com.au/winter/the-mountain/snow-report'},
-    {label:'BoM forecast',url:'https://www.bom.gov.au/vic/forecasts/alpine.shtml'},
-    {label:'Resort maps',url:'https://www.mtbuller.com.au/winter/the-mountain/trail-map'},
-    {label:'Race results',url:'https://www.mtbuller.com.au/winter/on-the-mountain/ski-race'},
-  ];
-  const days=[{d:'Tue',n:'5',hi:'−2',lo:'−8',sn:'12',icon:'cloud-snow'},{d:'Wed',n:'6',hi:'0',lo:'−6',sn:'4',icon:'cloud-snow'},{d:'Thu',n:'7',hi:'2',lo:'−4',sn:'0',icon:'sun'},{d:'Fri',n:'8',hi:'−1',lo:'−7',sn:'8',icon:'cloud-snow'},{d:'Sat',n:'9',hi:'−3',lo:'−10',sn:'22',icon:'snow'},{d:'Sun',n:'10',hi:'−4',lo:'−11',sn:'18',icon:'snow'},{d:'Mon',n:'11',hi:'−2',lo:'−9',sn:'6',icon:'cloud-snow'}];
-  return(
-    <main>
-      <section className="page-header">
-        <div className="page-header-bg">
-          <video autoPlay muted loop playsInline poster="assets/photo-blue-sky-resort.webp" style={{width:'100%',height:'100%',objectFit:'cover',position:'absolute',inset:0,zIndex:-2}}>
-            <source src="assets/hero2-opt.mp4" type="video/mp4"/>
-          </video>
-          <div className="page-header-overlay"/>
-        </div>
-        <div className="container-wide page-header-inner">
-          <div className="crumbs"><a href="index.html">Home</a><span>/</span><span>Mt Buller</span></div>
-          <R><span className="eyebrow" style={{color:'var(--brand-ice)'}}>The mountain · Resort info</span>
-          <h1 style={{marginTop:14,color:'#fff'}}>Mt Buller.</h1>
-          <p style={{fontFamily:'var(--font-editorial)',fontStyle:'italic',fontSize:'var(--fs-24)',color:'rgba(255,255,255,.75)',marginTop:'var(--sp-5)'}}>Everything you'll want bookmarked before you drive up.</p></R>
-        </div>
-      </section>
-      <ConditionsStrip/>
-      <section className="section">
-        <div className="container-wide">
-          <R><div className="section-head"><span className="eyebrow">7-day outlook</span><h2 style={{marginTop:14}}>Snow &amp; weather forecast</h2></div></R>
-          <R d={1}><div className="forecast-grid">{days.map((d,i)=>(
-            <div key={i} className="forecast-card">
-              <div style={{fontSize:11,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--ink-soft)',fontWeight:700}}>{d.d}</div>
-              <div style={{fontFamily:'var(--font-display)',fontWeight:500,fontSize:22,margin:'4px 0'}}>{d.n}</div>
-              <div style={{margin:'12px 0',color:'var(--brand-glacier)'}}><Icon name={d.icon} size={28} stroke={1.4}/></div>
-              <div style={{fontSize:14,fontWeight:600}}>{d.hi}° / <span className="muted">{d.lo}°</span></div>
-              <div style={{fontSize:12,color:'var(--ink-muted)',marginTop:4}}>{d.sn} cm</div>
+                </R>
+              ))}
             </div>
-          ))}</div></R>
-        </div>
-      </section>
-      <section className="section section-tint">
-        <div className="container-wide">
-          <R><div className="section-head" style={{marginBottom:'var(--sp-8)'}}>
-            <span className="eyebrow">Live from the mountain</span>
-            <h2 style={{marginTop:14}}>Snow cams</h2>
-            <p className="lead muted">Check current conditions on the slopes before you head up.</p>
-          </div></R>
-          <R d={1}>
-            <div className="cam-embed">
-              <iframe
-                src="https://www.youtube.com/embed/0OtVlfDj2w8?rel=0&modestbranding=1"
-                title="Mt Buller live snow cam"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                loading="lazy"
-              />
-            </div>
-          </R>
-          <R d={2}>
-            <div style={{display:'flex',justifyContent:'flex-end',marginTop:'var(--sp-4)'}}>
-              <a href="https://www.mtbuller.com.au/winter/weather/web-cams" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">More cams on mtbuller.com.au <Icon name="external" size={13}/></a>
-            </div>
-          </R>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container-wide" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'var(--sp-12)'}}>
-          <R><div><h2>Contact numbers</h2><p className="muted" style={{maxWidth:'40ch',marginBottom:'var(--sp-6)'}}>The list members usually want when something needs sorting.</p>
-            <div className="contact-list">{contacts.map(([n,v])=><div key={n} className="contact-item"><span dangerouslySetInnerHTML={{__html:n}}/><span className="val">{v}</span></div>)}</div>
-          </div></R>
-          <R d={1}><div><h2>Useful links</h2><p className="muted" style={{maxWidth:'40ch',marginBottom:'var(--sp-6)'}}>Resort information, bookings and reports.</p>
-            <div className="link-list">{links.map(l=><a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer"><span dangerouslySetInnerHTML={{__html:l.label}}/><Icon name="arrow-up-right" size={16}/></a>)}</div>
-          </div></R>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container-wide">
-          <R><div className="section-head"><span className="eyebrow">On the mountain this season</span><h2 style={{marginTop:14}}>Events to plan around</h2></div></R>
-          <div className="feat-grid">
-            {[{d:'14 Jun',t:'Opening Weekend',s:"King of the Mountain race plus fireworks Saturday night."},{d:'12 Jul',t:"Buller Mardi Gras",s:"Costume parade down Bourke Street; lodge dinner pre-game."},{d:'23 Aug',t:"Telemark Festival",s:"Free-heel classes, demo skis, end-of-day at Kooroora."}].map((e,i)=>(
-              <R key={e.t} d={i}><div className="feat"><span className="chip" style={{marginBottom:'var(--sp-3)'}}>{e.d}</span><h3>{e.t}</h3><p>{e.s}</p></div></R>
-            ))}
-          </div>
-        </div>
-      </section>
-      <MemberBand/><Footer/>
-    </main>
-  );
-}
-
-/* ── NEWS PAGE ───────────────────────────────────────────── */
-const ALL_POSTS_QUERY=`*[_type=="post"]|order(publishedAt desc){_id,title,"slug":slug.current,category,publishedAt,readingTimeMinutes,excerpt,mainImage{alt,asset}}`;
-function NewsPage(){
-  const[filter,setFilter]=useState('All');
-  const[posts,loading]=useSanityQuery(ALL_POSTS_QUERY,{},[]);
-  const list=posts||[];
-  const featured=list[0];
-  const rest=list.slice(1);
-  const tags=['All',...new Set(list.map(p=>p.category))];
-  const visible=rest.filter(p=>filter==='All'||p.category===filter);
-  return(
-    <main>
-      <section className="page-header">
-        <div className="page-header-bg"><Pic src="assets/photo-resort-crowd.jpg" alt=""/><div className="page-header-overlay"/></div>
-        <div className="container-wide page-header-inner">
-          <div className="crumbs"><a href="index.html">Home</a><span>/</span><span>News</span></div>
-          <R><span className="eyebrow" style={{color:'var(--brand-ice)'}}>News, notices &amp; used gear</span>
-          <h1 style={{marginTop:14,color:'#fff'}}>From the lodge.</h1>
-          <p style={{fontFamily:'var(--font-editorial)',fontStyle:'italic',fontSize:'var(--fs-24)',color:'rgba(255,255,255,.75)',marginTop:'var(--sp-5)',maxWidth:'56ch'}}>Snow reports, season notices, working bee dates, and the occasional pair of skis going to a new home.</p></R>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container-wide">
-          {loading?(
-            <p className="muted">Loading news…</p>
-          ):!featured?(
-            <p className="muted">No news posted yet — check back soon.</p>
-          ):(<>
-          <R><article className="news-featured" onClick={()=>onNav('article',featured.slug)} style={{cursor:'pointer'}}>
-            <Photo src={sanityImageUrl(featured.mainImage,{w:960})} label={featured.mainImage&&featured.mainImage.alt}/>
-            <div className="news-featured-body">
-              <div className="row" style={{marginBottom:12}}><span className="chip">{featured.category}</span><span className="muted" style={{fontSize:13}}>{formatDate(featured.publishedAt)} · {readingTimeLabel(featured.readingTimeMinutes)} read</span></div>
-              <h2>{featured.title}</h2><p className="lead">{featured.excerpt}</p>
-              <div style={{marginTop:'var(--sp-5)'}}><span className="btn btn-link">Read the full report <Icon name="arrow" size={14}/></span></div>
-            </div>
-          </article></R>
-          <R><div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:'var(--sp-6)'}}>
-            {tags.map(t=><button key={t} className={'btn btn-sm '+(filter===t?'btn-primary':'btn-ghost')} onClick={()=>setFilter(t)}>{t}</button>)}
-          </div></R>
-          <div className="news-grid">
-            {visible.map((p,i)=>(
-              <R key={p._id} d={i%3}><article className="news-card" onClick={()=>onNav('article',p.slug)} style={{cursor:'pointer'}}>
-                <Photo src={sanityImageUrl(p.mainImage,{w:640})} label={p.mainImage&&p.mainImage.alt} ratio="16/10"/>
-                <div className="news-card-body">
-                  <div className="meta"><span className="chip" style={{marginRight:8}}>{p.category}</span>{formatDate(p.publishedAt)}</div>
-                  <h3>{p.title}</h3><p>{p.excerpt}</p>
-                  <span className="more">Read <Icon name="arrow" size={14}/></span>
-                </div>
-              </article></R>
-            ))}
-          </div>
           </>)}
         </div>
       </section>
-      <MemberBand/><Footer/>
+    );
+  }
+
+  return(
+    <section className={'section '+(b.tintedBackground?'section-tint':'')}>
+      <div className="container-wide">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',flexWrap:'wrap',gap:16,marginBottom:'var(--sp-10)'}}>
+          <R><SectionHead heading={b.heading}/></R>
+          {b.viewAllLink&&<R d={1}><L link={b.viewAllLink} className="btn btn-ghost btn-sm"/></R>}
+        </div>
+        <R>
+          {loading?(
+            <div className="story-rail">{[0,1,2].map(i=><div key={i} className="news-card skeleton"/>)}</div>
+          ):list.length===0?(
+            <p className="muted">No news posted yet — check back soon.</p>
+          ):(
+            <div className="story-rail">
+              {list.map((p,i)=>(
+                <article key={p._id} className="news-card" onClick={()=>onNav('article',p.slug)} style={{cursor:'pointer'}}>
+                  <Photo src={sanityImageUrl(p.mainImage,{w:640})} label={p.mainImage&&p.mainImage.alt} ratio="16/10"/>
+                  <div className="news-card-body">
+                    <div className="meta"><span className="chip" style={{marginRight:8}}>{p.category}</span>{formatDate(p.publishedAt)}</div>
+                    <h3>{p.title}</h3><p>{p.excerpt}</p>
+                    <span className="more">Read {i===0?'article':''} <Icon name="arrow" size={14}/></span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </R>
+      </div>
+    </section>
+  );
+}
+
+const GALLERY_QUERY=`*[_type=="galleryPhoto"]|order(_createdAt desc){_id,caption,context,category,image{alt,asset}}`;
+function GalleryGridBlock({b}){
+  const[items,loading]=useSanityQuery(GALLERY_QUERY,{},[b._key]);
+  const[cat,setCat]=useState('all');
+  const filters=(b.filters||[]).length?b.filters:null;
+  const visible=(items||[]).filter(g=>cat==='all'||g.category===cat);
+  return(
+    <section className="section">
+      <div className="container-wide">
+        <R><SectionHead heading={b.heading}/></R>
+        {b.showFilters!==false&&filters&&(
+          <div className="gallery-filters">
+            {filters.map(f=>(
+              <button key={f._key} className={'btn btn-sm '+(cat===f.category?'btn-primary':'btn-ghost')} onClick={()=>setCat(f.category)}>{f.label}</button>
+            ))}
+          </div>
+        )}
+        {loading?<p className="muted">Loading gallery…</p>:visible.length===0?<p className="muted">No photos yet — check back soon.</p>:(
+          <div className="gallery-grid">
+            {visible.map((g,i)=>(
+              <R key={g._id} d={i%3}>
+                <div className="gallery-item">
+                  <img src={sanityImageUrl(g.image,{w:800})} alt={(g.image&&g.image.alt)||g.caption} loading="lazy"/>
+                  <div className="gallery-caption"><span>{g.caption}</span><small>{g.context}</small></div>
+                </div>
+              </R>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+const GEAR_QUERY=`*[_type=="gearListing"]|order(postedAt desc){_id,title,category,size,price,status,seller,postedAt,image{alt,asset},description}`;
+function GearGridBlock({b}){
+  const[gear,loading]=useSanityQuery(GEAR_QUERY,{},[b._key]);
+  const[cat,setCat]=useState('All');
+  const filters=(b.filters||[]).length?b.filters:null;
+  let visible=(gear||[]).filter(g=>cat==='All'||g.category===cat);
+  if(b.hideSold)visible=visible.filter(g=>g.status!=='sold');
+  return(
+    <section className="section" style={{paddingTop:'var(--sp-10)'}}>
+      <div className="container-wide">
+        <R><SectionHead heading={b.heading}/></R>
+        {b.showFilters!==false&&filters&&(
+          <div className="gear-filters">
+            {filters.map(c=><button key={c} className={'btn btn-sm '+(cat===c?'btn-primary':'btn-ghost')} onClick={()=>setCat(c)}>{c}</button>)}
+          </div>
+        )}
+        {loading?<p className="muted">Loading listings…</p>:visible.length===0?<p className="muted">No gear listed right now — check back soon.</p>:(
+          <div className="gear-grid">
+            {visible.map((g,i)=>(
+              <R key={g._id} d={i%3}>
+                <div className="gear-card">
+                  <div className="gear-img">
+                    <Photo src={sanityImageUrl(g.image,{w:640})} ratio="4/3" label={g.category}/>
+                    <span className={'gear-badge '+(g.status==='sold'?'sold':g.status==='reserved'?'reserved':'')}>
+                      {g.status==='available'?g.category:g.status}
+                    </span>
+                  </div>
+                  <div className="gear-body">
+                    <h3>{g.title}</h3>
+                    <div className="gear-size">{g.size}</div>
+                    <p className="gear-desc">{g.description}</p>
+                    <div className="gear-seller"><Icon name="users" size={13}/>{g.seller} · {timeAgo(g.postedAt)}</div>
+                    <div className="gear-price">{g.status==='sold'?<span style={{color:'var(--ink-soft)',fontSize:'var(--fs-18)'}}>Sold</span>:`$${g.price}`}</div>
+                  </div>
+                  {g.status!=='sold'&&(
+                    <div className="gear-actions">
+                      <a className="btn btn-primary btn-sm" href={b.contactButtonHref||'login.html'} style={{flex:1}}>
+                        <Icon name="lock" size={13}/> {b.contactButtonLabel||'Contact seller'}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </R>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ── form blocks ─────────────────────────────────────────── */
+
+function EnquiryFormBlock({b}){
+  const[done,setDone]=useState(false);
+  const[form,setForm]=useState({name:'',email:'',phone:'',interest:'',message:''});
+  const sb=b.sidebar||{};
+  return(
+    <section className="section">
+      <div className="container-wide enquire-grid">
+        <R><div>
+          {sb.heading&&<h2 style={{fontSize:'var(--fs-32)'}}>{sb.heading}</h2>}
+          {sb.intro&&<p className="muted">{sb.intro}</p>}
+          {(sb.steps||[]).length>0&&(
+            <ol className="muted" style={{paddingLeft:'1.2em',lineHeight:1.8,marginTop:'var(--sp-5)'}}>
+              {sb.steps.map(s=><li key={s._key}><b style={{color:'var(--ink)'}}>{s.title}</b> {s.body}</li>)}
+            </ol>
+          )}
+          {(sb.contacts||[]).length>0&&(<>
+            <hr className="divider"/>
+            <h3>{sb.contactsHeading||'Direct contacts'}</h3>
+            <div className="contact-list" style={{marginTop:'var(--sp-4)'}}>
+              {sb.contacts.map(c=><div key={c._key} className="contact-item"><span>{c.label}</span><span className="val">{c.value}</span></div>)}
+            </div>
+          </>)}
+        </div></R>
+        <R d={1}><div className="form-card">
+          {done?(
+            <div>
+              <div className="form-success"><Icon name="check" size={20}/><div><b>{b.successHeading}</b><br/>{b.successBody}</div></div>
+              <button className="btn btn-ghost" style={{marginTop:'var(--sp-6)'}} onClick={()=>{setDone(false);setForm({name:'',email:'',phone:'',interest:'',message:''});}}>Send another</button>
+            </div>
+          ):(
+            <form onSubmit={e=>{e.preventDefault();setDone(true);}} style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)'}}>
+              <h3 style={{margin:0}}>{b.heading}</h3>
+              {b.intro&&<p className="muted" style={{margin:0,fontSize:14}}>{b.intro}</p>}
+              <div className="form-row-2">
+                <div className="field"><label htmlFor="ef-first">First name *</label><input id="ef-first" className="input" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
+                <div className="field"><label htmlFor="ef-last">Last name *</label><input id="ef-last" className="input" required/></div>
+              </div>
+              <div className="form-row-2">
+                <div className="field"><label htmlFor="ef-email">Email *</label><input id="ef-email" className="input" type="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></div>
+                <div className="field"><label htmlFor="ef-phone">Phone</label><input id="ef-phone" className="input" type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></div>
+              </div>
+              {(b.topics||[]).length>0&&(
+                <div className="field"><label htmlFor="ef-topic">What's this about?</label>
+                  <select id="ef-topic" className="select" value={form.interest} onChange={e=>setForm({...form,interest:e.target.value})}>
+                    {b.topics.map(t=><option key={t._key} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="field"><label htmlFor="ef-msg">Your message *</label>
+                <textarea id="ef-msg" className="textarea" required placeholder={b.messagePlaceholder} value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/>
+              </div>
+              {b.consentLabel&&<label className="checkbox" style={{fontSize:14}}><input type="checkbox" required/> {b.consentLabel}</label>}
+              <button type="submit" className="btn btn-cta btn-lg" style={{alignSelf:'flex-start',marginTop:'var(--sp-2)'}}>{b.submitLabel} <span className="arrow">→</span></button>
+            </form>
+          )}
+        </div></R>
+      </div>
+    </section>
+  );
+}
+
+function LoginFormBlock({b}){
+  const[done,setDone]=useState(false);
+  const art=b.art||{};
+  const bg=sanityImageUrl(art.backgroundImage,{w:1200});
+  return(
+    <main>
+      <div className="login-shell">
+        <aside className="login-art">
+          <div className="login-art-media">
+            {bg&&<img src={bg} alt={art.backgroundImage&&art.backgroundImage.alt||''} style={{width:'100%',height:'100%',objectFit:'cover',position:'absolute',inset:0}}/>}
+            <div className="login-art-overlay"/>
+          </div>
+          <div style={{position:'relative',zIndex:1}}>
+            <div style={{background:'rgba(255,255,255,.92)',borderRadius:10,padding:'7px 12px',display:'inline-block',boxShadow:'0 4px 20px rgba(0,0,0,.3)'}}>
+              <Logo height={40}/>
+            </div>
+          </div>
+          <div className="login-art-middle" style={{position:'relative',zIndex:1}}>
+            <p className="editorial login-art-welcome">{art.welcomeHeading}{art.welcomeEmphasis&&<><br/><em>{art.welcomeEmphasis}</em></>}</p>
+            {art.welcomeBody&&<p style={{color:'var(--snow-300)',marginTop:'var(--sp-5)',maxWidth:'32ch',fontSize:16,lineHeight:1.6}}>{art.welcomeBody}</p>}
+          </div>
+          {art.quote&&(
+            <div style={{position:'relative',zIndex:1}}>
+              <div className="login-art-quote-block">
+                <p className="login-art-quote">{art.quote}</p>
+                <span style={{color:'var(--snow-500)',marginTop:10,fontSize:12,display:'block',letterSpacing:'.08em',textTransform:'uppercase'}}>{art.quoteAttribution}</span>
+              </div>
+            </div>
+          )}
+        </aside>
+        <section className="login-form-wrap">
+          <div className="login-form">
+            <a className="login-form-back" href="index.html">← Back to mitreskiclub.com</a>
+            {b.eyebrow&&<span className="eyebrow">{b.eyebrow}</span>}
+            <h1 style={{marginTop:12}}>{b.heading}</h1>
+            {b.intro&&<p className="small">{b.intro}</p>}
+            {done&&<div className="form-success"><Icon name="check" size={18}/><div>{b.successMessage}</div></div>}
+            <form onSubmit={e=>{e.preventDefault();setDone(true);}} style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',marginTop:'var(--sp-2)'}}>
+              <div className="field"><label htmlFor="lg-email">Email address</label><input id="lg-email" className="input" type="email" required/></div>
+              <div className="field"><label htmlFor="lg-pass">Password</label><input id="lg-pass" className="input" type="password" required/></div>
+              <div className="row-between">
+                <label className="checkbox"><input type="checkbox"/> Keep me signed in</label>
+                <a href="#">Forgot password?</a>
+              </div>
+              <button type="submit" className="btn btn-cta btn-lg" style={{marginTop:'var(--sp-2)'}}>
+                <Icon name="lock" size={16}/> {b.submitLabel} <span className="arrow">→</span>
+              </button>
+            </form>
+            {b.joinLink&&(<>
+              <hr className="divider" style={{margin:'var(--sp-8) 0'}}/>
+              <p className="small">{b.joinPrompt} <a href={b.joinLink.href} style={{color:'var(--brand-deep)',borderBottom:'1px solid currentColor'}}>{b.joinLink.label} →</a></p>
+            </>)}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+/* ── block registry ──────────────────────────────────────── */
+const BLOCKS={
+  heroBlock:HeroBlock,
+  conditionsStripBlock:ConditionsStripBlock,
+  richTextBlock:RichTextBlock,
+  featureGridBlock:FeatureGridBlock,
+  quoteBlock:QuoteBlock,
+  ctaBandBlock:CtaBandBlock,
+  noticeBlock:NoticeBlock,
+  forecastBlock:ForecastBlock,
+  reviewsBlock:ReviewsBlock,
+  infoSectionsBlock:InfoSectionsBlock,
+  stepsBlock:StepsBlock,
+  youtubeBlock:YoutubeBlock,
+  instagramBlock:InstagramBlock,
+  iframeBlock:IframeBlock,
+  serviceLinkBlock:ServiceLinkBlock,
+  newsListBlock:NewsListBlock,
+  galleryGridBlock:GalleryGridBlock,
+  gearGridBlock:GearGridBlock,
+  enquiryFormBlock:EnquiryFormBlock,
+  loginFormBlock:LoginFormBlock,
+};
+/** Blocks that sit inside a shared two-column section rather than owning a section. */
+const PAIRED=new Set(['contactListBlock','linkListBlock']);
+const DIRECTIONS_LEFT=new Set(['stepsBlock']);
+const DIRECTIONS_RIGHT=new Set(['linkCardsBlock','addressBlock']);
+
+function Block({b}){
+  const C=BLOCKS[b._type];
+  if(!C)return null;
+  return <C b={b}/>;
+}
+
+/**
+ * Renders a page's blocks, grouping the ones that share a row:
+ * contactList + linkList sit side by side, and the directions page
+ * puts steps on the left with link cards + address on the right.
+ */
+function Blocks({content}){
+  const out=[];
+  const items=content||[];
+  for(let i=0;i<items.length;i++){
+    const b=items[i];
+    if(PAIRED.has(b._type)){
+      const pair=[b];
+      while(i+1<items.length&&PAIRED.has(items[i+1]._type)){pair.push(items[++i]);}
+      out.push(
+        <section key={b._key} className="section section-tint">
+          <div className="container-wide" style={{display:'grid',gridTemplateColumns:pair.length>1?'1fr 1fr':'1fr',gap:'var(--sp-12)'}}>
+            {pair.map(p=>p._type==='contactListBlock'?<ContactListBlock key={p._key} b={p}/>:<LinkListBlock key={p._key} b={p}/>)}
+          </div>
+        </section>
+      );
+      continue;
+    }
+    if(DIRECTIONS_LEFT.has(b._type)&&i+1<items.length&&DIRECTIONS_RIGHT.has(items[i+1]._type)){
+      const left=b;const right=[];
+      while(i+1<items.length&&DIRECTIONS_RIGHT.has(items[i+1]._type))right.push(items[++i]);
+      out.push(
+        <section key={left._key} className="section">
+          <div className="container-wide directions-grid" style={{marginTop:0}}>
+            <StepsBlock b={left}/>
+            <div>
+              {right.map(r=>r._type==='linkCardsBlock'?<LinkCardsBlock key={r._key} b={r}/>:<AddressBlock key={r._key} b={r}/>)}
+            </div>
+          </div>
+        </section>
+      );
+      continue;
+    }
+    if(b._type==='mapBlock'){
+      out.push(<section key={b._key} className="section" style={{paddingBottom:0}}><div className="container-wide"><MapBlock b={b}/></div></section>);
+      continue;
+    }
+    if(b._type==='linkCardsBlock'){
+      out.push(<section key={b._key} className="section"><div className="container-wide"><LinkCardsBlock b={b}/></div></section>);
+      continue;
+    }
+    if(b._type==='addressBlock'){
+      out.push(<section key={b._key} className="section"><div className="container-wide"><AddressBlock b={b}/></div></section>);
+      continue;
+    }
+    out.push(<Block key={b._key} b={b}/>);
+  }
+  return out;
+}
+
+/* ── PageView ────────────────────────────────────────────── */
+function PageHeaderBanner({page}){
+  const h=page.header;
+  if(!h)return null;
+  const bg=sanityImageUrl(h.backgroundImage,{w:2000});
+  return(
+    <section className="page-header">
+      <div className="page-header-bg">
+        {bg&&<img src={bg} alt="" fetchPriority="high"/>}
+        <div className="page-header-overlay"/>
+      </div>
+      <div className="container-wide page-header-inner">
+        <div className="crumbs"><a href="index.html">Home</a><span>/</span><span>{page.breadcrumb||page.title}</span></div>
+        <R>
+          {h.eyebrow&&<span className="eyebrow" style={{color:'var(--brand-ice)'}}>{h.eyebrow}</span>}
+          <h1 style={{marginTop:14,color:'#fff'}}>{h.heading}</h1>
+          {h.lead&&<p style={{fontFamily:'var(--font-editorial)',fontStyle:'italic',fontSize:'var(--fs-24)',color:'rgba(255,255,255,.75)',marginTop:'var(--sp-5)',maxWidth:'56ch'}}>{h.lead}</p>}
+        </R>
+        {(h.facts||[]).length>0&&(
+          <div className="hdr-meta">
+            {h.facts.map(f=><div key={f._key}><b>{f.value}</b>{f.detail}</div>)}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function PageView({slug,site}){
+  const[page,loading]=useSanityQuery(PAGE_QUERY,{slug},[slug]);
+  useEffect(()=>{
+    if(!page)return;
+    const seo=page.seo||{};
+    if(seo.metaTitle||page.title)document.title=seo.metaTitle||`${page.title} — Mitre Ski Club`;
+    if(seo.metaDescription){
+      let m=document.querySelector('meta[name="description"]');
+      if(!m){m=document.createElement('meta');m.name='description';document.head.appendChild(m);}
+      m.content=seo.metaDescription;
+    }
+  },[page]);
+
+  if(loading)return <main style={{minHeight:'70vh',display:'grid',placeItems:'center'}}><p className="muted">Loading…</p></main>;
+  if(!page)return(
+    <main style={{minHeight:'70vh',display:'grid',placeItems:'center',textAlign:'center'}}>
+      <div>
+        <h1>Page not found</h1>
+        <p className="muted" style={{marginTop:'var(--sp-4)'}}>This page hasn't been created in the CMS yet.</p>
+        <a className="btn btn-primary btn-sm" href="index.html" style={{marginTop:'var(--sp-5)'}}>Back to home</a>
+      </div>
+    </main>
+  );
+
+  // The login page owns the whole viewport — no nav, no footer.
+  const loginBlock=(page.content||[]).find(b=>b._type==='loginFormBlock');
+  if(loginBlock)return <LoginFormBlock b={loginBlock}/>;
+
+  return(
+    <main>
+      {page.headerStyle==='banner'&&<PageHeaderBanner page={page}/>}
+      <Blocks content={page.content}/>
+      {page.showMemberBand!==false&&<MemberBand band={site&&site.band}/>}
+      <Footer nav={site&&site.nav} settings={site&&site.settings}/>
     </main>
   );
 }
 
 /* ── ARTICLE ─────────────────────────────────────────────── */
 const POST_BY_SLUG_QUERY=`*[_type=="post" && slug.current==$slug][0]{_id,title,category,publishedAt,readingTimeMinutes,mainImage{alt,asset},body}`;
-function ArticlePage(){
+function ArticlePage({site}){
   const[post,loading]=useSanityQuery(POST_BY_SLUG_QUERY,{slug:ART_ID||''},[ART_ID]);
+  useEffect(()=>{if(post)document.title=`${post.title} — Mitre Ski Club`;},[post]);
+  const bg=post&&post.mainImage?sanityImageUrl(post.mainImage,{w:1600}):null;
   return(
     <main>
       <section className="page-header">
-        <div className="page-header-bg"><Pic src={post&&post.mainImage?sanityImageUrl(post.mainImage,{w:1600}):'assets/photo-mt-buller-peak.jpg'} alt=""/><div className="page-header-overlay"/></div>
+        <div className="page-header-bg">{bg&&<img src={bg} alt=""/>}<div className="page-header-overlay"/></div>
         <div className="container-wide page-header-inner">
           <div className="crumbs"><a href="index.html">Home</a><span>/</span><a href="news.html">News</a><span>/</span><span>{post?post.category:''}</span></div>
           <div className="article-wrap">
-            {loading?(
-              <p style={{color:'#fff'}}>Loading…</p>
-            ):!post?(
+            {loading?<p style={{color:'#fff'}}>Loading…</p>:!post?(
               <>
                 <h1 style={{color:'#fff'}}>Article not found</h1>
                 <p style={{color:'rgba(255,255,255,.7)',marginTop:'var(--sp-4)'}}>This story may have been moved or unpublished. <a href="news.html" style={{color:'#fff',textDecoration:'underline'}}>Back to news →</a></p>
               </>
             ):(
-              <R><span className="chip" style={{marginBottom:14,background:'rgba(255,255,255,.15)',color:'#fff'}}>{post.category}</span>
-              <h1 style={{color:'#fff'}}>{post.title}</h1>
-              <div style={{color:'rgba(255,255,255,.6)',fontSize:14,marginTop:'var(--sp-4)'}}>{formatDate(post.publishedAt)} · {readingTimeLabel(post.readingTimeMinutes)} read · By the Web Committee</div></R>
+              <R>
+                <span className="chip" style={{marginBottom:14,background:'rgba(255,255,255,.15)',color:'#fff'}}>{post.category}</span>
+                <h1 style={{color:'#fff'}}>{post.title}</h1>
+                <div style={{color:'rgba(255,255,255,.6)',fontSize:14,marginTop:'var(--sp-4)'}}>{formatDate(post.publishedAt)} · {readingTimeLabel(post.readingTimeMinutes)} read · By the Web Committee</div>
+              </R>
             )}
           </div>
         </div>
@@ -764,351 +1344,7 @@ function ArticlePage(){
           </div>
         </section>
       )}
-      <Footer/>
-    </main>
-  );
-}
-
-/* ── ENQUIRIES ───────────────────────────────────────────── */
-function EnquiriesPage(){
-  const[done,setDone]=useState(false);
-  const[form,setForm]=useState({name:'',email:'',phone:'',interest:'membership',message:''});
-  return(
-    <main>
-      <section className="page-header">
-        <div className="page-header-bg"><Pic src="assets/photo-resort-crowd.jpg" alt=""/><div className="page-header-overlay"/></div>
-        <div className="container-wide page-header-inner">
-          <div className="crumbs"><a href="index.html">Home</a><span>/</span><span>Enquiries</span></div>
-          <R><span className="eyebrow" style={{color:'var(--brand-ice)'}}>Get in touch</span>
-          <h1 style={{marginTop:14,color:'#fff'}}>Say hello.</h1>
-          <p style={{fontFamily:'var(--font-editorial)',fontStyle:'italic',fontSize:'var(--fs-24)',color:'rgba(255,255,255,.75)',marginTop:'var(--sp-5)',maxWidth:'56ch'}}>Whether you're thinking about joining, after a group booking, or just have a question — drop us a line.</p></R>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container-wide enquire-grid">
-          <R><div>
-            <h2 style={{fontSize:'var(--fs-32)'}}>How membership works</h2>
-            <p className="muted">Mitre is a small, member-run club. New memberships open when existing members move on.</p>
-            <ol className="muted" style={{paddingLeft:'1.2em',lineHeight:1.8,marginTop:'var(--sp-5)'}}>
-              <li><b style={{color:'var(--ink)'}}>Get in touch.</b> Use the form, or email the secretary.</li>
-              <li><b style={{color:'var(--ink)'}}>Visit the lodge.</b> Stay a weekend or two as a member's guest.</li>
-              <li><b style={{color:'var(--ink)'}}>Submit a nomination.</b> A current member proposes; another seconds.</li>
-              <li><b style={{color:'var(--ink)'}}>Committee review.</b> Decisions are made monthly during winter.</li>
-            </ol>
-            <hr className="divider"/>
-            <h3>Direct contacts</h3>
-            <div className="contact-list" style={{marginTop:'var(--sp-4)'}}>
-              {[['Secretary','secretary@mitreskiclub.com'],['Bookings','bookings@mitreskiclub.com'],['President','president@mitreskiclub.com'],['Treasurer','treasurer@mitreskiclub.com']].map(([n,v])=><div key={n} className="contact-item"><span>{n}</span><span className="val">{v}</span></div>)}
-            </div>
-          </div></R>
-          <R d={1}><div className="form-card">
-            {done?(
-              <div>
-                <div className="form-success"><Icon name="check" size={20}/><div><b>Thanks — your message is on its way.</b><br/>We'll be in touch within a week.</div></div>
-                <button className="btn btn-ghost" style={{marginTop:'var(--sp-6)'}} onClick={()=>{setDone(false);setForm({name:'',email:'',phone:'',interest:'membership',message:''});}}>Send another</button>
-              </div>
-            ):(
-              <form onSubmit={e=>{e.preventDefault();setDone(true);}} style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)'}}>
-                <h3 style={{margin:0}}>Send us a note</h3>
-                <p className="muted" style={{margin:0,fontSize:14}}>* required</p>
-                <div className="form-row-2">
-                  <div className="field"><label>First name *</label><input className="input" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></div>
-                  <div className="field"><label>Last name *</label><input className="input" required/></div>
-                </div>
-                <div className="form-row-2">
-                  <div className="field"><label>Email *</label><input className="input" type="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></div>
-                  <div className="field"><label>Phone</label><input className="input" type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/></div>
-                </div>
-                <div className="field"><label>What's this about?</label>
-                  <select className="select" value={form.interest} onChange={e=>setForm({...form,interest:e.target.value})}>
-                    <option value="membership">Becoming a member</option>
-                    <option value="guest">Staying as a member's guest</option>
-                    <option value="group">Group booking (off-season)</option>
-                    <option value="other">Something else</option>
-                  </select>
-                </div>
-                <div className="field"><label>Your message *</label>
-                  <textarea className="textarea" required placeholder="A short note about what you're after, your skiing/snowboarding history, or who put you onto Mitre…" value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/>
-                </div>
-                <label className="checkbox" style={{fontSize:14}}><input type="checkbox" required/> I'm happy for the committee to contact me.</label>
-                <button type="submit" className="btn btn-cta btn-lg" style={{alignSelf:'flex-start',marginTop:'var(--sp-2)'}}>Send enquiry <span className="arrow">→</span></button>
-              </form>
-            )}
-          </div></R>
-        </div>
-      </section>
-      <Footer/>
-    </main>
-  );
-}
-
-/* ── LOGIN ───────────────────────────────────────────────── */
-function LoginPage(){
-  const[done,setDone]=useState(false);
-  return(
-    <main>
-      <div className="login-shell">
-        <aside className="login-art">
-          <div className="login-art-media">
-            <Pic src="assets/photo-resort-crowd.jpg" alt="Mt Buller resort" style={{width:'100%',height:'100%',objectFit:'cover',position:'absolute',inset:0}} priority/>
-            <div className="login-art-overlay"/>
-          </div>
-          <div style={{position:'relative',zIndex:1}}>
-            <div style={{background:'rgba(255,255,255,.92)',borderRadius:10,padding:'7px 12px',display:'inline-block',boxShadow:'0 4px 20px rgba(0,0,0,.3)'}}>
-              <Logo height={40}/>
-            </div>
-          </div>
-          <div className="login-art-middle" style={{position:'relative',zIndex:1}}>
-            <p className="editorial login-art-welcome">Welcome back<br/><em>to the mountain.</em></p>
-            <p style={{color:'var(--snow-300)',marginTop:'var(--sp-5)',maxWidth:'32ch',fontSize:16,lineHeight:1.6}}>Bookings, season dates, members' notices and used-gear listings — all yours.</p>
-          </div>
-          <div style={{position:'relative',zIndex:1}}>
-            <div className="login-art-quote-block">
-              <p className="login-art-quote">"Last lodge on the Avenue. Ski straight in off Standard."</p>
-              <span style={{color:'var(--snow-500)',marginTop:10,fontSize:12,display:'block',letterSpacing:'.08em',textTransform:'uppercase'}}>— Mitre Ski Club, est. 1962</span>
-            </div>
-          </div>
-        </aside>
-        <section className="login-form-wrap">
-          <div className="login-form">
-            <a className="login-form-back" href="index.html">← Back to mitreskiclub.com</a>
-            <span className="eyebrow">Members</span>
-            <h1 style={{marginTop:12}}>Log in to bookings.</h1>
-            <p className="small">Use the email you registered with the club. <a href="#" style={{color:'var(--brand-deep)',borderBottom:'1px solid currentColor'}}>Forgotten your password?</a></p>
-            {done&&<div className="form-success"><Icon name="check" size={18}/><div>Sending you to bookings.mitreskiclub.com…</div></div>}
-            <form onSubmit={e=>{e.preventDefault();setDone(true);}} style={{display:'flex',flexDirection:'column',gap:'var(--sp-4)',marginTop:'var(--sp-2)'}}>
-              <div className="field"><label>Email address</label><input className="input" type="email" required/></div>
-              <div className="field"><label>Password</label><input className="input" type="password" required/></div>
-              <div className="row-between">
-                <label className="checkbox"><input type="checkbox"/> Keep me signed in</label>
-                <a href="#">Forgot password?</a>
-              </div>
-              <button type="submit" className="btn btn-cta btn-lg" style={{marginTop:'var(--sp-2)'}}>
-                <Icon name="lock" size={16}/> Log in <span className="arrow">→</span>
-              </button>
-            </form>
-            <hr className="divider" style={{margin:'var(--sp-8) 0'}}/>
-            <p className="small">Not a member? <a href="enquiries.html" style={{color:'var(--brand-deep)',borderBottom:'1px solid currentColor'}}>Enquire about joining →</a></p>
-          </div>
-        </section>
-      </div>
-    </main>
-  );
-}
-
-/* ── GALLERY ─────────────────────────────────────────────── */
-const GALLERY_CATS=[['all','All photos'],['mountain','On the mountain'],['lodge','Lodge life'],['bee','Working bees'],['summer','Off-season']];
-const GALLERY_QUERY=`*[_type=="galleryPhoto"]|order(_createdAt desc){_id,caption,context,category,image{alt,asset}}`;
-function GalleryPage(){
-  const[cat,setCat]=useState('all');
-  const[items,loading]=useSanityQuery(GALLERY_QUERY,{},[]);
-  const visible=(items||[]).filter(g=>cat==='all'||g.category===cat);
-  return(
-    <main>
-      <section className="page-header">
-        <div className="page-header-bg"><Pic src="assets/photo-resort-crowd.jpg" alt=""/><div className="page-header-overlay"/></div>
-        <div className="container-wide page-header-inner">
-          <div className="crumbs"><a href="index.html">Home</a><span>/</span><span>Gallery</span></div>
-          <R><span className="eyebrow" style={{color:'var(--brand-ice)'}}>Members' gallery</span>
-          <h1 style={{marginTop:14,color:'#fff'}}>Sixty winters of moments.</h1>
-          <p style={{fontFamily:'var(--font-editorial)',fontStyle:'italic',fontSize:'var(--fs-24)',color:'rgba(255,255,255,.75)',marginTop:'var(--sp-5)',maxWidth:'56ch'}}>Powder days, working bees, golden hours and the last ski of the season.</p></R>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container-wide">
-          <div className="gallery-filters">
-            {GALLERY_CATS.map(([id,lbl])=>(
-              <button key={id} className={'btn btn-sm '+(cat===id?'btn-primary':'btn-ghost')} onClick={()=>setCat(id)}>{lbl}</button>
-            ))}
-          </div>
-          {loading?(
-            <p className="muted">Loading gallery…</p>
-          ):visible.length===0?(
-            <p className="muted">No photos yet — check back soon.</p>
-          ):(
-          <div className="gallery-grid">
-            {visible.map((g,i)=>(
-              <R key={g._id} d={i%3}>
-                <div className="gallery-item">
-                  <img src={sanityImageUrl(g.image,{w:800})} alt={(g.image&&g.image.alt)||g.caption} loading="lazy"/>
-                  <div className="gallery-caption">
-                    <span>{g.caption}</span>
-                    <small>{g.context}</small>
-                  </div>
-                </div>
-              </R>
-            ))}
-          </div>
-          )}
-          <R>
-            <div className="gallery-insta-cta">
-              <div style={{fontSize:32,marginBottom:'var(--sp-3)'}}>📸</div>
-              <h3>Follow us on Instagram</h3>
-              <p style={{color:'rgba(255,255,255,.8)',margin:'0 auto var(--sp-6)',maxWidth:'44ch'}}>Members sharing the season in real time — powder alerts, working bee photos, and the occasional après ski.</p>
-              <a href="https://www.instagram.com/mitreskiclub/" target="_blank" rel="noopener noreferrer" className="btn btn-sm" style={{background:'rgba(255,255,255,.2)',color:'#fff',border:'1px solid rgba(255,255,255,.3)'}}>
-                <Icon name="instagram" size={15}/> @mitreskiclub
-              </a>
-              <p style={{color:'rgba(255,255,255,.5)',marginTop:'var(--sp-4)',fontSize:13}}>Got photos from Mitre? Send them to <a href="mailto:secretary@mitreskiclub.com" style={{color:'rgba(255,255,255,.7)'}}>secretary@mitreskiclub.com</a> to be featured.</p>
-            </div>
-          </R>
-        </div>
-      </section>
-      <Footer/>
-    </main>
-  );
-}
-
-/* ── SHOP ────────────────────────────────────────────────── */
-const GEAR_CATS=['All','Skis','Boots','Jacket','Helmet','Kids skis'];
-const GEAR_QUERY=`*[_type=="gearListing"]|order(postedAt desc){_id,title,category,size,price,status,seller,postedAt,image{alt,asset},description}`;
-function ShopPage(){
-  const[cat,setCat]=useState('All');
-  const[gear,loading]=useSanityQuery(GEAR_QUERY,{},[]);
-  const visible=(gear||[]).filter(g=>cat==='All'||g.category===cat);
-  return(
-    <main>
-      <section className="page-header">
-        <div className="page-header-bg"><Pic src="assets/photo-snowboarder-pov.jpg" alt=""/><div className="page-header-overlay"/></div>
-        <div className="container-wide page-header-inner">
-          <div className="crumbs"><a href="index.html">Home</a><span>/</span><span>Used gear shop</span></div>
-          <R><span className="eyebrow" style={{color:'var(--brand-ice)'}}>Members' classifieds</span>
-          <h1 style={{marginTop:14,color:'#fff'}}>Used ski gear.</h1>
-          <p style={{fontFamily:'var(--font-editorial)',fontStyle:'italic',fontSize:'var(--fs-24)',color:'rgba(255,255,255,.75)',marginTop:'var(--sp-5)',maxWidth:'56ch'}}>Skis, boots, jackets and helmets from fellow members. Good gear, fair prices.</p></R>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container-wide">
-          <R>
-            <div className="shop-notice">
-              <Icon name="info" size={18} stroke={2}/>
-              <div><b>Members-only listings.</b> Contact the seller directly using the details in the member portal. To list your own gear, email <a href="mailto:secretary@mitreskiclub.com">secretary@mitreskiclub.com</a> with photos, price and description. All sales are between members — the club takes no commission.</div>
-            </div>
-          </R>
-          <div className="gear-filters">
-            {GEAR_CATS.map(c=>(
-              <button key={c} className={'btn btn-sm '+(cat===c?'btn-primary':'btn-ghost')} onClick={()=>setCat(c)}>{c}</button>
-            ))}
-          </div>
-          {loading?(
-            <p className="muted">Loading listings…</p>
-          ):visible.length===0?(
-            <p className="muted">No gear listed right now — check back soon.</p>
-          ):(
-          <div className="gear-grid">
-            {visible.map((g,i)=>(
-              <R key={g._id} d={i%3}>
-                <div className="gear-card">
-                  <div className="gear-img">
-                    <Photo src={sanityImageUrl(g.image,{w:640})} ratio="4/3" label={g.category}/>
-                    <span className={'gear-badge '+(g.status==='sold'?'sold':g.status==='reserved'?'reserved':'')}>{g.status==='available'?g.category:g.status}</span>
-                  </div>
-                  <div className="gear-body">
-                    <h3>{g.title}</h3>
-                    <div className="gear-size">{g.size}</div>
-                    <p className="gear-desc">{g.description}</p>
-                    <div className="gear-seller"><Icon name="users" size={13}/>{g.seller} · {timeAgo(g.postedAt)}</div>
-                    <div className="gear-price">{g.status==='sold'?<span style={{color:'var(--ink-soft)',fontSize:'var(--fs-18)'}}>Sold</span>:`$${g.price}`}</div>
-                  </div>
-                  {g.status!=='sold'&&(
-                    <div className="gear-actions">
-                      <a className="btn btn-primary btn-sm" href="login.html" style={{flex:1}}><Icon name="lock" size={13}/> Contact seller</a>
-                    </div>
-                  )}
-                </div>
-              </R>
-            ))}
-          </div>
-          )}
-        </div>
-      </section>
-      <MemberBand/><Footer/>
-    </main>
-  );
-}
-
-/* ── DIRECTIONS ──────────────────────────────────────────── */
-function DirectionsPage(){
-  const[tab,setTab]=useState('car');
-  const carSteps=[
-    {n:1,title:'Leave Melbourne via the Hume Freeway',body:"Head northeast on the Hume Freeway (M31). Take the Seymour exit and continue towards Mansfield on the Maroondah Highway."},
-    {n:2,title:'Through Mansfield — chains available here',body:"Mansfield is 190 km from Melbourne CBD (about 2.5 hrs). Hire or buy snow chains at any of the service stations or gear shops on the main street. Chains must be carried from the gate."},
-    {n:3,title:'Pay resort entry at the Merrijig gate',body:"The entry gate is at Merrijig, 9 km before the village. Staff will collect resort entry fees. Keep your receipt — you'll need it for parking."},
-    {n:4,title:'Drive to the top — follow signs to The Avenue',body:"Drive up the mountain road (about 16 km, allow 30–40 min in ski season). At the top, follow signs to The Avenue. Mitre is the last lodge — number 14."},
-    {n:5,title:'Park in the designated guest parking area',body:"There is allocated parking behind the lodge. The lodge number is 14 The Avenue. Ring the bell or use the code from your booking confirmation."},
-  ];
-  const busSteps=[
-    {n:1,title:'Book the Mansfield–Mt Buller bus',body:"The Mansfield–Mt Buller Snowball Express bus runs daily during ski season from the Mansfield Bus Terminal. Bookings via Mount Buller Resort Management: (03) 5777 6077."},
-    {n:2,title:'Take the train to Seymour or Shepparton',body:"V/Line trains run from Southern Cross Station to Seymour (1.5 hrs). From Seymour you can connect to the coach service to Mansfield."},
-    {n:3,title:'Coach from Mansfield to Mt Buller',body:"The resort bus drops passengers at the village plaza. From there, the oversnow taxi service (03) 5777 6070 runs to all lodge addresses. Tell the driver 14 The Avenue."},
-  ];
-  const steps=tab==='car'?carSteps:busSteps;
-  const links=[
-    {icon:'external',title:'Mt Buller resort entry',sub:'Fees, permits & conditions',url:'https://www.mtbuller.com.au/winter/plan-your-trip/getting-here'},
-    {icon:'external',title:'Oversnow taxi service',sub:'Book: (03) 5777 6070',url:'tel:0357776070'},
-    {icon:'map-pin',title:'Google Maps',sub:'14 The Avenue, Mt Buller VIC',url:'https://www.google.com/maps/place/Mitre+Ski+Club/data=!4m2!3m1!1s0x0:0xf93f066352e269fc?sa=X&ved=1t:2428&ictx=111'},
-    {icon:'external',title:'VicRoads traffic info',sub:'Road conditions & alerts',url:'https://traffic.vicroads.vic.gov.au/'},
-    {icon:'external',title:'Snow chains info',sub:'When & how to fit chains',url:'https://www.mtbuller.com.au/winter/plan-your-trip/getting-here#chains'},
-    {icon:'external',title:'V/Line trains',sub:'Melbourne → Seymour / Shepparton',url:'https://www.vline.com.au/'},
-  ];
-  return(
-    <main>
-      <section className="page-header">
-        <div className="page-header-bg"><Pic src="assets/photo-mt-buller-peak.jpg" alt="Mt Buller"/><div className="page-header-overlay"/></div>
-        <div className="container-wide page-header-inner">
-          <div className="crumbs"><a href="index.html">Home</a><span>/</span><span>Directions</span></div>
-          <R><span className="eyebrow" style={{color:'var(--brand-ice)'}}>Getting here</span>
-          <h1 style={{marginTop:14,color:'#fff'}}>Find us on the mountain.</h1>
-          <p style={{fontFamily:'var(--font-editorial)',fontStyle:'italic',fontSize:'var(--fs-24)',color:'rgba(255,255,255,.75)',marginTop:'var(--sp-5)',maxWidth:'56ch'}}>14 The Avenue, Mt Buller VIC 3723. Last lodge on the road.</p></R>
-        </div>
-      </section>
-      <section className="section">
-        <div className="container-wide">
-          <R>
-            <div className="map-embed">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1561.2!2d146.4375!3d-37.1527!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0xf93f066352e269fc!2sMitre%20Ski%20Club!5e0!3m2!1sen!2sau!4v1"
-                allowFullScreen="" loading="lazy" referrerPolicy="no-referrer-when-downgrade"
-                title="Mitre Ski Club location"
-              />
-            </div>
-          </R>
-          <div className="directions-grid">
-            <div>
-              <h2>Step-by-step directions</h2>
-              <div className="transport-tabs" style={{marginTop:'var(--sp-5)'}}>
-                <button className={'transport-tab '+(tab==='car'?'active':'')} onClick={()=>setTab('car')}><Icon name="car" size={15}/> By car</button>
-                <button className={'transport-tab '+(tab==='bus'?'active':'')} onClick={()=>setTab('bus')}><Icon name="bus" size={15}/> By bus / train</button>
-              </div>
-              {steps.map(s=>(
-                <div key={s.n} className="dir-step">
-                  <div className="dir-num">{s.n}</div>
-                  <div><h4>{s.title}</h4><p>{s.body}</p></div>
-                </div>
-              ))}
-            </div>
-            <div>
-              <h2>Useful links</h2>
-              <p className="muted" style={{marginTop:'var(--sp-3)',marginBottom:'var(--sp-2)'}}>Everything you need before heading up.</p>
-              <div className="useful-links-grid">
-                {links.map((l,i)=>(
-                  <R key={i} d={i%3}>
-                    <a href={l.url} target="_blank" rel="noopener noreferrer" className="useful-link-card">
-                      <div className="icon-wrap"><Icon name={l.icon} size={18}/></div>
-                      <h4>{l.title}</h4>
-                      <p>{l.sub}</p>
-                    </a>
-                  </R>
-                ))}
-              </div>
-              <div style={{marginTop:'var(--sp-10)',padding:'var(--sp-6)',background:'var(--bg-elev)',border:'1px solid var(--line)',borderRadius:'var(--r-lg)'}}>
-                <h3 style={{marginBottom:'var(--sp-3)'}}>Address</h3>
-                <p style={{color:'var(--ink-muted)',fontSize:15,margin:0,lineHeight:1.8}}>Mitre Ski Club<br/>14 The Avenue<br/>Mt Buller VIC 3723<br/><br/>Lodge phone (winter only):<br/><a href="tel:0357776070" style={{color:'var(--brand-deep)'}}>Ask at resort reception</a></p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-      <Footer/>
+      <Footer nav={site&&site.nav} settings={site&&site.settings}/>
     </main>
   );
 }
@@ -1117,24 +1353,18 @@ function DirectionsPage(){
 function App(){
   const[theme,setTheme]=useState(()=>localStorage.getItem('mitre-theme')||'light');
   useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('mitre-theme',theme);},[theme]);
-  const showNav=PAGE!=='login';
+  const[site]=useSanityQuery(SITE_QUERY,{},[]);
+  const slug=PAGE==='home'?'index':PAGE;
+  const isArticle=PAGE==='article';
+  const isLogin=PAGE==='login';
   return(
     <>
       <GlobalFX/>
-      {showNav&&<TopNav current={PAGE}/>}
-      {PAGE==='home'&&<HomePage/>}
-      {PAGE==='lodge'&&<LodgePage/>}
-      {PAGE==='buller'&&<BullerPage/>}
-      {PAGE==='news'&&<NewsPage/>}
-      {PAGE==='article'&&<ArticlePage/>}
-      {PAGE==='enquiries'&&<EnquiriesPage/>}
-      {PAGE==='login'&&<LoginPage/>}
-      {PAGE==='gallery'&&<GalleryPage/>}
-      {PAGE==='shop'&&<ShopPage/>}
-      {PAGE==='directions'&&<DirectionsPage/>}
+      {!isLogin&&<TopNav nav={site&&site.nav} settings={site&&site.settings} current={PAGE}/>}
+      {isArticle?<ArticlePage site={site}/>:<PageView slug={slug} site={site}/>}
       <div className="theme-toggle">
         {['light','dark'].map(t=>(
-          <button key={t} className={theme===t?'active':''} onClick={()=>setTheme(t)}>
+          <button key={t} className={theme===t?'active':''} onClick={()=>setTheme(t)} aria-pressed={theme===t}>
             {t.charAt(0).toUpperCase()+t.slice(1)}
           </button>
         ))}

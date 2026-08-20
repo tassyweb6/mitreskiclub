@@ -597,37 +597,83 @@
             fill: mono ? '#0B111B' : '#FAFBFC'
         }));
     }
-    /* ── TopNav ──────────────────────────────────────────────── */ function TopNav({ current }) {
+    /* ── GROQ ────────────────────────────────────────────────── */ const SITE_QUERY = `{
+  "settings":*[_id=="siteSettings"][0],
+  "nav":*[_id=="navigation"][0],
+  "band":*[_id=="memberBand"][0]
+}`;
+    const PAGE_QUERY = `*[_type=="page" && slug.current==$slug][0]{
+  title,headerStyle,breadcrumb,showConditionsStrip,showMemberBand,header,content,seo
+}`;
+    /* ── link helpers ────────────────────────────────────────── */ const relFor = (l)=>l && l.newTab ? 'noopener noreferrer' : undefined;
+    const targetFor = (l)=>l && l.newTab ? '_blank' : undefined;
+    function L({ link, className, style, children }) {
+        if (!link || !link.href) return null;
+        return /*#__PURE__*/ React.createElement("a", {
+            href: link.href,
+            target: targetFor(link),
+            rel: relFor(link),
+            className: className,
+            style: style
+        }, children || link.label, link.icon && /*#__PURE__*/ React.createElement(Icon, {
+            name: link.icon,
+            size: 13
+        }));
+    }
+    function CTA({ cta, size = '', className = '' }) {
+        if (!cta || !cta.href) return null;
+        const style = cta.style || 'cta';
+        return /*#__PURE__*/ React.createElement("a", {
+            className: `btn btn-${style} ${size} ${className}`.trim(),
+            href: cta.href,
+            target: targetFor(cta),
+            rel: relFor(cta)
+        }, cta.icon && /*#__PURE__*/ React.createElement(Icon, {
+            name: cta.icon,
+            size: 15
+        }), " ", cta.label, " ", /*#__PURE__*/ React.createElement("span", {
+            className: "arrow"
+        }, "→"));
+    }
+    function SectionHead({ heading, light }) {
+        if (!heading) return null;
+        const { eyebrow, heading: h, intro } = heading;
+        if (!eyebrow && !h && !intro) return null;
+        return /*#__PURE__*/ React.createElement("div", {
+            className: "section-head"
+        }, eyebrow && /*#__PURE__*/ React.createElement("span", {
+            className: "eyebrow",
+            style: light ? {
+                color: 'var(--brand-ice)'
+            } : undefined
+        }, eyebrow), h && /*#__PURE__*/ React.createElement("h2", {
+            style: {
+                marginTop: 14
+            }
+        }, h), intro && /*#__PURE__*/ React.createElement("p", {
+            className: "lead",
+            style: {
+                color: 'var(--ink-muted)'
+            }
+        }, intro));
+    }
+    /** Accepts any YouTube URL shape and returns the /embed/ form. */ function youtubeEmbedUrl(url) {
+        if (!url) return null;
+        const m = url.match(/(?:youtu\.be\/|\/live\/|\/embed\/|[?&]v=)([\w-]{6,})/);
+        return m ? `https://www.youtube.com/embed/${m[1]}?rel=0&modestbranding=1` : url;
+    }
+    /* ── TopNav ──────────────────────────────────────────────── */ function TopNav({ nav, settings, current }) {
         const [open, setOpen] = useState(false);
-        const scrolled = true;
-        const items = [
-            [
-                'home',
-                'Home'
-            ],
-            [
-                'lodge',
-                'The Lodge'
-            ],
-            [
-                'buller',
-                'Mt Buller'
-            ],
-            [
-                'news',
-                'News'
-            ],
-            [
-                'gallery',
-                'Gallery'
-            ],
-            [
-                'enquiries',
-                'Enquiries'
-            ]
-        ];
+        const items = nav && nav.mainNav || [];
+        const extras = nav && nav.mobileExtras || [];
+        const loginLabel = settings && settings.memberLoginLabel || 'Member login';
+        const loginHref = settings && settings.memberLoginHref || 'login.html';
+        const isActive = (href)=>{
+            const f = (href || '').replace('.html', '');
+            return f === current || current === 'home' && f === 'index';
+        };
         return /*#__PURE__*/ React.createElement("header", {
-            className: 'top-nav ' + (scrolled ? 'scrolled' : '')
+            className: "top-nav scrolled"
         }, /*#__PURE__*/ React.createElement("div", {
             className: "nav-inner",
             style: {
@@ -638,114 +684,52 @@
             className: "nav-brand",
             href: "index.html"
         }, /*#__PURE__*/ React.createElement(Logo, {
-            height: 44,
-            mono: !scrolled
+            height: 44
         })), /*#__PURE__*/ React.createElement("nav", {
             className: "nav-links",
             "aria-label": "Primary"
-        }, items.map(([id, lbl])=>/*#__PURE__*/ React.createElement("a", {
-                key: id,
-                href: id === 'home' ? 'index.html' : id + '.html',
-                className: 'nav-link ' + (current === id ? 'active' : '')
-            }, lbl))), /*#__PURE__*/ React.createElement("div", {
+        }, items.map((l)=>/*#__PURE__*/ React.createElement("a", {
+                key: l._key,
+                href: l.href,
+                target: targetFor(l),
+                rel: relFor(l),
+                className: 'nav-link ' + (isActive(l.href) ? 'active' : '')
+            }, l.label))), /*#__PURE__*/ React.createElement("div", {
             className: "nav-actions"
         }, /*#__PURE__*/ React.createElement("a", {
             className: "btn btn-cta btn-sm",
-            href: "login.html"
+            href: loginHref
         }, /*#__PURE__*/ React.createElement(Icon, {
             name: "lock",
             size: 14
-        }), " Member login ", /*#__PURE__*/ React.createElement("span", {
+        }), " ", loginLabel, " ", /*#__PURE__*/ React.createElement("span", {
             className: "arrow"
         }, "→")), /*#__PURE__*/ React.createElement("button", {
             className: "nav-burger",
             onClick: ()=>setOpen(!open),
-            "aria-label": "Menu"
+            "aria-label": "Menu",
+            "aria-expanded": open
         }, /*#__PURE__*/ React.createElement(Icon, {
             name: open ? 'close' : 'menu'
         })))), open && /*#__PURE__*/ React.createElement("div", {
             className: "nav-mobile"
-        }, items.map(([id, lbl])=>/*#__PURE__*/ React.createElement("a", {
-                key: id,
-                href: id === 'home' ? 'index.html' : id + '.html',
-                className: 'nav-link ' + (current === id ? 'active' : '')
-            }, lbl)), /*#__PURE__*/ React.createElement("a", {
-            href: "shop.html",
-            className: 'nav-link ' + (current === 'shop' ? 'active' : '')
-        }, "Used gear shop"), /*#__PURE__*/ React.createElement("a", {
+        }, items.concat(extras).map((l)=>/*#__PURE__*/ React.createElement("a", {
+                key: l._key,
+                href: l.href,
+                target: targetFor(l),
+                rel: relFor(l),
+                className: 'nav-link ' + (isActive(l.href) ? 'active' : '')
+            }, l.label)), /*#__PURE__*/ React.createElement("a", {
             className: "btn btn-cta",
-            href: "login.html"
+            href: loginHref
         }, /*#__PURE__*/ React.createElement(Icon, {
             name: "lock",
             size: 14
-        }), " Member login →")));
+        }), " ", loginLabel, " →")));
     }
-    /* ── ConditionsStrip ─────────────────────────────────────── */ function ConditionsStrip() {
-        const stats = [
-            {
-                label: 'Base depth',
-                value: '142 cm',
-                sub: 'Bourke Street',
-                icon: 'snow'
-            },
-            {
-                label: 'Last 24 h',
-                value: '32 cm',
-                sub: 'fresh, light',
-                icon: 'cloud-snow'
-            },
-            {
-                label: 'Temperature',
-                value: '−4°',
-                sub: 'feels like −9°',
-                icon: 'thermometer'
-            },
-            {
-                label: 'Lifts open',
-                value: '14 / 22',
-                sub: 'wind-hold Summit',
-                icon: 'mountain'
-            }
-        ];
-        return /*#__PURE__*/ React.createElement("div", {
-            className: "cond-strip"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide cond-inner"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "cond-meta"
-        }, /*#__PURE__*/ React.createElement("span", {
-            className: "chip"
-        }, /*#__PURE__*/ React.createElement("span", {
-            className: "dot live"
-        }), " Live"), /*#__PURE__*/ React.createElement("span", {
-            style: {
-                color: 'var(--snow-400)',
-                fontSize: 13
-            }
-        }, "Updated 7 min ago · 5 May 2026, 7:42 AM")), /*#__PURE__*/ React.createElement("div", {
-            className: "cond-stats"
-        }, stats.map((s)=>/*#__PURE__*/ React.createElement("div", {
-                key: s.label,
-                className: "cond-stat"
-            }, /*#__PURE__*/ React.createElement(Icon, {
-                name: s.icon,
-                size: 20
-            }), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("div", {
-                className: "cond-val"
-            }, s.value), /*#__PURE__*/ React.createElement("div", {
-                className: "cond-sub"
-            }, /*#__PURE__*/ React.createElement("b", null, s.label), " · ", s.sub))))), /*#__PURE__*/ React.createElement("a", {
-            className: "btn btn-ghost btn-sm",
-            href: "https://www.mtbuller.com.au/winter/the-mountain/snow-report",
-            target: "_blank",
-            rel: "noopener noreferrer"
-        }, "Full snow report ", /*#__PURE__*/ React.createElement(Icon, {
-            name: "external",
-            size: 13
-        }))));
-    }
-    /* ── MemberBand ──────────────────────────────────────────── */ function MemberBand() {
+    /* ── MemberBand ──────────────────────────────────────────── */ function MemberBand({ band }) {
         const [ref, vis] = useReveal();
+        if (!band) return null;
         return /*#__PURE__*/ React.createElement("section", {
             className: "member-band",
             ref: ref
@@ -753,159 +737,39 @@
             className: "container member-band-inner"
         }, /*#__PURE__*/ React.createElement("div", {
             className: 'reveal d0 ' + (vis ? 'is-visible' : '')
-        }, /*#__PURE__*/ React.createElement("span", {
+        }, band.eyebrow && /*#__PURE__*/ React.createElement("span", {
             className: "eyebrow",
             style: {
                 color: 'var(--brand-sky)'
             }
-        }, "Members"), /*#__PURE__*/ React.createElement("h2", {
+        }, band.eyebrow), /*#__PURE__*/ React.createElement("h2", {
             style: {
                 color: '#fff',
                 marginTop: 10
             }
-        }, "Already a Mitre member?"), /*#__PURE__*/ React.createElement("p", {
+        }, band.heading), band.body && /*#__PURE__*/ React.createElement("p", {
             style: {
                 color: 'var(--snow-300)',
                 maxWidth: '50ch',
                 marginTop: 8
             }
-        }, "Skip ahead. Bookings, season dates, members' notices — all in the portal.")), /*#__PURE__*/ React.createElement("div", {
+        }, band.body)), /*#__PURE__*/ React.createElement("div", {
             className: 'reveal d1 member-band-cta ' + (vis ? 'is-visible' : '')
-        }, /*#__PURE__*/ React.createElement("a", {
-            className: "btn btn-cta btn-lg",
-            href: "login.html"
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "lock",
-            size: 16
-        }), " Login to bookings ", /*#__PURE__*/ React.createElement("span", {
-            className: "arrow"
-        }, "→")), /*#__PURE__*/ React.createElement("span", {
+        }, /*#__PURE__*/ React.createElement(CTA, {
+            cta: band.button,
+            size: "btn-lg"
+        }), band.footnote && /*#__PURE__*/ React.createElement("span", {
             style: {
                 color: 'var(--snow-400)',
                 fontSize: 13,
                 marginTop: 6
             }
-        }, "bookings.mitreskiclub.com"))));
+        }, band.footnote))));
     }
-    /* ── Reviews ─────────────────────────────────────────────── */ const REVIEWS = [
-        {
-            name: 'James T.',
-            init: 'JT',
-            rating: 5,
-            date: 'March 2026',
-            text: "The perfect alpine club. Small enough that everyone knows each other, big enough to have everything you need. We've been coming for six seasons and it just gets better."
-        },
-        {
-            name: 'Priya S.',
-            init: 'PS',
-            rating: 5,
-            date: 'August 2025',
-            text: "Ski-in, ski-out from Standard was everything. The drying room is brilliant — gear's always ready next morning. Warm, welcoming crew and the best positioned lodge on The Avenue."
-        },
-        {
-            name: 'Marcus H.',
-            init: 'MH',
-            rating: 5,
-            date: 'July 2025',
-            text: "As a family of four we were worried a club lodge might feel unwelcoming, but it was the opposite. Kids loved the TV room after dinner; we loved the fact that it wasn't a hotel."
-        },
-        {
-            name: 'Anna W.',
-            init: 'AW',
-            rating: 5,
-            date: 'June 2025',
-            text: "Did the working bee weekend in May and stayed for a ski trip in July. This is what skiing should feel like — communal, affordable, and a great laugh at the end of the day."
-        },
-        {
-            name: 'Daniel C.',
-            init: 'DC',
-            rating: 5,
-            date: 'September 2024',
-            text: "Brilliant value compared to resort accommodation. The lodge manager Anna runs an incredibly tight ship. Allocation system is fair, kitchen is well equipped. Can't fault it."
-        },
-        {
-            name: 'Sophie R.',
-            init: 'SR',
-            rating: 4,
-            date: 'August 2024',
-            text: "Excellent location at the end of The Avenue. Rooms are cosy — not luxury but totally comfortable. The view from the lounge on a clear morning is worth it alone."
-        }
-    ];
-    function ReviewsSection() {
-        const [ref, vis] = useReveal({
-            th: .05
-        });
-        return /*#__PURE__*/ React.createElement("section", {
-            className: "reviews-section",
-            ref: ref
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "reviews-header"
-        }, /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow"
-        }, "What members & guests say"), /*#__PURE__*/ React.createElement("h2", {
-            style: {
-                marginTop: 14
-            }
-        }, "Sixty winters of happy skiers.")), /*#__PURE__*/ React.createElement("div", {
-            className: "reviews-rating-block"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "reviews-score"
-        }, "4.8"), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement(Stars, {
-            n: 5
-        }), /*#__PURE__*/ React.createElement("div", {
-            style: {
-                fontSize: 13,
-                color: 'var(--ink-muted)',
-                marginTop: 5
-            }
-        }, "Based on Google reviews"), /*#__PURE__*/ React.createElement("a", {
-            href: "https://www.google.com/maps/place/Mitre+Ski+Club/data=!4m2!3m1!1s0x0:0xf93f066352e269fc",
-            target: "_blank",
-            rel: "noopener noreferrer",
-            style: {
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                marginTop: 10,
-                fontSize: 13,
-                color: 'var(--ink-muted)',
-                borderBottom: '1px solid var(--line)',
-                paddingBottom: 2
-            }
-        }, "View all reviews ", /*#__PURE__*/ React.createElement(Icon, {
-            name: "arrow-up-right",
-            size: 13
-        }))))), /*#__PURE__*/ React.createElement("div", {
-            className: "reviews-grid"
-        }, REVIEWS.map((r, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: r.name,
-                d: i % 3
-            }, /*#__PURE__*/ React.createElement("div", {
-                className: "review-card"
-            }, /*#__PURE__*/ React.createElement("div", {
-                className: "review-card-top"
-            }, /*#__PURE__*/ React.createElement("div", {
-                className: "review-avatar"
-            }, r.init), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("div", {
-                style: {
-                    fontWeight: 600,
-                    fontSize: 14,
-                    color: 'var(--ink)'
-                }
-            }, r.name), /*#__PURE__*/ React.createElement(Stars, {
-                n: r.rating,
-                size: 12
-            }))), /*#__PURE__*/ React.createElement("blockquote", null, '"', r.text, '"'), /*#__PURE__*/ React.createElement("div", {
-                className: "review-card-meta"
-            }, /*#__PURE__*/ React.createElement("span", null, r.date), /*#__PURE__*/ React.createElement("span", {
-                style: {
-                    opacity: .35
-                }
-            }, "·"), /*#__PURE__*/ React.createElement("span", null, "Verified member"))))))));
-    }
-    /* ── Footer ──────────────────────────────────────────────── */ function Footer() {
+    /* ── Footer ──────────────────────────────────────────────── */ function Footer({ nav, settings }) {
+        const groups = nav && nav.footerGroups || [];
+        const legal = nav && nav.legalLinks || [];
+        const social = settings && settings.socialLinks || [];
         return /*#__PURE__*/ React.createElement("footer", {
             className: "footer"
         }, /*#__PURE__*/ React.createElement("div", {
@@ -925,7 +789,7 @@
             className: "footer-grid"
         }, /*#__PURE__*/ React.createElement("div", {
             className: "footer-brand"
-        }, /*#__PURE__*/ React.createElement("p", {
+        }, settings && settings.tagline && /*#__PURE__*/ React.createElement("p", {
             style: {
                 color: 'var(--snow-400)',
                 fontSize: 14,
@@ -933,64 +797,39 @@
                 maxWidth: '36ch',
                 margin: 0
             }
-        }, "A members' lodge on Mt Buller, Victoria. Skiing, eating and arguing over dinner since 1962."), /*#__PURE__*/ React.createElement("div", {
+        }, settings.tagline), /*#__PURE__*/ React.createElement("div", {
             className: "footer-social"
-        }, /*#__PURE__*/ React.createElement("a", {
-            href: "https://www.instagram.com/mitreskiclub/",
-            target: "_blank",
-            rel: "noopener noreferrer",
-            "aria-label": "Instagram"
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "instagram"
-        })), /*#__PURE__*/ React.createElement("a", {
-            href: "https://www.facebook.com/mitreskiclub/",
-            target: "_blank",
-            rel: "noopener noreferrer",
-            "aria-label": "Facebook"
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "facebook"
-        })))), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h5", null, "Visit"), /*#__PURE__*/ React.createElement("a", {
-            href: "index.html"
-        }, "Home"), /*#__PURE__*/ React.createElement("a", {
-            href: "lodge.html"
-        }, "The Lodge"), /*#__PURE__*/ React.createElement("a", {
-            href: "buller.html"
-        }, "Mt Buller"), /*#__PURE__*/ React.createElement("a", {
-            href: "directions.html"
-        }, "Directions"), /*#__PURE__*/ React.createElement("a", {
-            href: "https://www.mtbuller.com.au/winter/weather/web-cams",
-            target: "_blank",
-            rel: "noopener noreferrer"
-        }, "Snow cams ", /*#__PURE__*/ React.createElement(Icon, {
-            name: "external",
-            size: 11
-        }))), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h5", null, "Members"), /*#__PURE__*/ React.createElement("a", {
-            href: "login.html"
-        }, "Login to bookings"), /*#__PURE__*/ React.createElement("a", {
-            href: "gallery.html"
-        }, "Members' gallery"), /*#__PURE__*/ React.createElement("a", {
-            href: "shop.html"
-        }, "Used gear shop"), /*#__PURE__*/ React.createElement("a", {
-            href: "#"
-        }, "Working bee dates"), /*#__PURE__*/ React.createElement("a", {
-            href: "#"
-        }, "AGM & minutes")), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h5", null, "Join"), /*#__PURE__*/ React.createElement("a", {
-            href: "news.html"
-        }, "News & notices"), /*#__PURE__*/ React.createElement("a", {
-            href: "enquiries.html"
-        }, "Become a member"), /*#__PURE__*/ React.createElement("a", {
-            href: "enquiries.html"
-        }, "Make an enquiry")), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h5", null, "Contact"), /*#__PURE__*/ React.createElement("p", {
+        }, social.map((s)=>/*#__PURE__*/ React.createElement("a", {
+                key: s._key,
+                href: s.href,
+                target: targetFor(s),
+                rel: relFor(s),
+                "aria-label": s.label
+            }, /*#__PURE__*/ React.createElement(Icon, {
+                name: s.icon || 'external'
+            }))))), groups.map((g)=>/*#__PURE__*/ React.createElement("div", {
+                key: g._key
+            }, /*#__PURE__*/ React.createElement("h5", null, g.heading), (g.links || []).map((l)=>/*#__PURE__*/ React.createElement("a", {
+                    key: l._key,
+                    href: l.href,
+                    target: targetFor(l),
+                    rel: relFor(l)
+                }, l.label, l.icon && /*#__PURE__*/ React.createElement(React.Fragment, null, " ", /*#__PURE__*/ React.createElement(Icon, {
+                    name: l.icon,
+                    size: 11
+                })))))), settings && /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h5", null, "Contact"), /*#__PURE__*/ React.createElement("p", {
             className: "footer-contact"
-        }, "Mitre Lodge", /*#__PURE__*/ React.createElement("br", null), "14 The Avenue", /*#__PURE__*/ React.createElement("br", null), "Mt Buller VIC 3723", /*#__PURE__*/ React.createElement("br", null), /*#__PURE__*/ React.createElement("br", null), /*#__PURE__*/ React.createElement("a", {
-            href: "mailto:secretary@mitreskiclub.com"
-        }, "secretary@mitreskiclub.com")))), /*#__PURE__*/ React.createElement("div", {
+        }, settings.organisationName, /*#__PURE__*/ React.createElement("br", null), (settings.address || '').split('\n').map((line, i)=>/*#__PURE__*/ React.createElement(React.Fragment, {
+                key: i
+            }, line, /*#__PURE__*/ React.createElement("br", null))), /*#__PURE__*/ React.createElement("br", null), settings.email && /*#__PURE__*/ React.createElement("a", {
+            href: `mailto:${settings.email}`
+        }, settings.email)))), /*#__PURE__*/ React.createElement("div", {
             className: "footer-bottom"
-        }, /*#__PURE__*/ React.createElement("span", null, "© 2026 Mitre Ski Club Inc."), /*#__PURE__*/ React.createElement("span", null, /*#__PURE__*/ React.createElement("a", {
-            href: "#"
-        }, "Privacy"), " · ", /*#__PURE__*/ React.createElement("a", {
-            href: "#"
-        }, "Terms"), " · Built by the Web Committee · ", /*#__PURE__*/ React.createElement("a", {
+        }, /*#__PURE__*/ React.createElement("span", null, settings && settings.copyright), /*#__PURE__*/ React.createElement("span", null, legal.map((l, i)=>/*#__PURE__*/ React.createElement(React.Fragment, {
+                key: l._key
+            }, i > 0 && ' · ', /*#__PURE__*/ React.createElement("a", {
+                href: l.href
+            }, l.label))), nav && nav.builtByLine && /*#__PURE__*/ React.createElement(React.Fragment, null, " · ", nav.builtByLine), ' · ', /*#__PURE__*/ React.createElement("a", {
             href: "#",
             onClick: (e)=>{
                 e.preventDefault();
@@ -1001,8 +840,7 @@
             }
         }, "Sign out of preview")))));
     }
-    /* ── HOME ────────────────────────────────────────────────── */ const LATEST_POSTS_QUERY = `*[_type=="post"]|order(publishedAt desc)[0...3]{_id,title,"slug":slug.current,category,publishedAt,excerpt,mainImage{alt,asset}}`;
-    function HomePage() {
+    /* ══ BLOCKS ═══════════════════════════════════════════════ */ function HeroBlock({ b }) {
         const [loaded, setLoaded] = useState(false);
         useEffect(()=>{
             const t = setTimeout(()=>setLoaded(true), 120);
@@ -1011,24 +849,19 @@
         const [statsRef, statsVis] = useReveal({
             th: .08
         });
-        const [whyRef, whyVis] = useReveal({
-            th: .06
+        const poster = sanityImageUrl(b.posterImage, {
+            w: 1600
         });
-        const [latestPosts, postsLoading] = useSanityQuery(LATEST_POSTS_QUERY, {}, []);
-        return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("div", {
-            style: {
-                paddingTop: 'var(--nav-h)'
-            }
-        }, /*#__PURE__*/ React.createElement(ConditionsStrip, null)), /*#__PURE__*/ React.createElement("section", {
+        return /*#__PURE__*/ React.createElement("section", {
             className: "hero"
         }, /*#__PURE__*/ React.createElement("div", {
             className: "hero-media"
-        }, /*#__PURE__*/ React.createElement("video", {
+        }, b.backgroundVideoUrl ? /*#__PURE__*/ React.createElement("video", {
             autoPlay: true,
             muted: true,
             loop: true,
             playsInline: true,
-            poster: "assets/photo-resort-crowd.webp",
+            poster: poster,
             fetchPriority: "high",
             style: {
                 width: '100%',
@@ -1036,12 +869,17 @@
                 objectFit: 'cover'
             }
         }, /*#__PURE__*/ React.createElement("source", {
-            src: "assets/hero1-opt.mp4",
+            src: b.backgroundVideoUrl,
             type: "video/mp4"
-        }), /*#__PURE__*/ React.createElement("source", {
-            src: "assets/hero2-opt.mp4",
-            type: "video/mp4"
-        }))), /*#__PURE__*/ React.createElement("div", {
+        })) : poster && /*#__PURE__*/ React.createElement("img", {
+            src: poster,
+            alt: "",
+            style: {
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+            }
+        })), /*#__PURE__*/ React.createElement("div", {
             className: "hero-overlay"
         }), /*#__PURE__*/ React.createElement("div", {
             className: "snow-particles",
@@ -1060,7 +898,7 @@
                     opacity: .35 + i % 3 * .15
                 }
             }))), /*#__PURE__*/ React.createElement("div", {
-            className: 'hero-body container-wide'
+            className: "hero-body container-wide"
         }, /*#__PURE__*/ React.createElement("div", {
             style: {
                 opacity: loaded ? 1 : 0,
@@ -1068,32 +906,26 @@
                 transition: 'opacity .9s .15s,transform .9s .15s'
             },
             className: "hero-grid"
-        }, /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("span", {
+        }, /*#__PURE__*/ React.createElement("div", null, b.eyebrow && /*#__PURE__*/ React.createElement("span", {
             className: "eyebrow hero-eyebrow"
-        }, "Mt Buller · Est. 1962"), /*#__PURE__*/ React.createElement("h1", {
+        }, b.eyebrow), /*#__PURE__*/ React.createElement("h1", {
             className: "hero-h1"
-        }, "Your home", /*#__PURE__*/ React.createElement("br", null), /*#__PURE__*/ React.createElement("em", null, "on the mountain.")), /*#__PURE__*/ React.createElement("p", {
+        }, b.heading, b.headingEmphasis && /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement("br", null), /*#__PURE__*/ React.createElement("em", null, b.headingEmphasis))), b.lead && /*#__PURE__*/ React.createElement("p", {
             className: "hero-lead"
-        }, "A members' lodge at the end of The Avenue. Ski straight in off Standard, walk five minutes to the lifts, and meet everyone over dinner."), /*#__PURE__*/ React.createElement("div", {
+        }, b.lead), /*#__PURE__*/ React.createElement("div", {
             className: "hero-ctas"
-        }, /*#__PURE__*/ React.createElement("a", {
-            className: "btn btn-cta btn-lg",
-            href: "login.html"
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "lock",
-            size: 16
-        }), " Member login ", /*#__PURE__*/ React.createElement("span", {
-            className: "arrow"
-        }, "→")), /*#__PURE__*/ React.createElement("a", {
-            className: "btn btn-ghost-light btn-lg",
-            href: "enquiries.html"
-        }, "Become a member"))), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("div", {
+        }, (b.ctas || []).map((c)=>/*#__PURE__*/ React.createElement(CTA, {
+                key: c._key,
+                cta: c,
+                size: "btn-lg"
+            })))), b.sideImage && /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("div", {
             className: "hero-art-card"
-        }, /*#__PURE__*/ React.createElement(Pic, {
-            src: "assets/photo-snowboarder-pov.jpg",
-            alt: "Snowboarder's view at Mt Buller",
-            priority: true
-        }), /*#__PURE__*/ React.createElement("div", {
+        }, /*#__PURE__*/ React.createElement("img", {
+            src: sanityImageUrl(b.sideImage, {
+                w: 800
+            }),
+            alt: b.sideImage.alt || ''
+        }), (b.sideImageTitle || b.sideImageSubtitle) && /*#__PURE__*/ React.createElement("div", {
             className: "hero-art-badge"
         }, /*#__PURE__*/ React.createElement(Icon, {
             name: "map-pin",
@@ -1103,58 +935,122 @@
                 fontWeight: 600,
                 fontSize: 13
             }
-        }, "14 The Avenue"), /*#__PURE__*/ React.createElement("div", {
+        }, b.sideImageTitle), /*#__PURE__*/ React.createElement("div", {
             style: {
                 fontSize: 11,
                 color: 'var(--snow-300)'
             }
-        }, "Mt Buller · Last lodge on the road")))))), /*#__PURE__*/ React.createElement("div", {
+        }, b.sideImageSubtitle)))))), (b.stats || []).length > 0 && /*#__PURE__*/ React.createElement("div", {
             className: "hero-stats",
             ref: statsRef
-        }, [
-            [
-                '1962',
-                'Founded'
-            ],
-            [
-                '40+',
-                'Beds · 12 rooms'
-            ],
-            [
-                '5 min',
-                'Walk to lifts'
-            ],
-            [
-                '60+',
-                'Winters on Buller'
-            ]
-        ].map(([n, l], i)=>/*#__PURE__*/ React.createElement("div", {
-                key: i,
+        }, b.stats.map((s, i)=>/*#__PURE__*/ React.createElement("div", {
+                key: s._key,
                 className: 'hero-stat reveal d' + i + ' ' + (statsVis ? 'is-visible' : '')
-            }, /*#__PURE__*/ React.createElement("b", null, n), /*#__PURE__*/ React.createElement("span", null, l))))), /*#__PURE__*/ React.createElement("div", {
+            }, /*#__PURE__*/ React.createElement("b", null, s.value), /*#__PURE__*/ React.createElement("span", null, s.label))))), /*#__PURE__*/ React.createElement("div", {
             className: "scroll-cue",
             "aria-hidden": true
         }, /*#__PURE__*/ React.createElement("span", null, "Scroll"), /*#__PURE__*/ React.createElement("div", {
             className: "scroll-cue-line"
-        }))), /*#__PURE__*/ React.createElement("div", {
-            className: "full-bleed",
+        })));
+    }
+    function ConditionsStripBlock({ b }) {
+        if (!b) return null;
+        return /*#__PURE__*/ React.createElement("div", {
+            className: "cond-strip"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "container-wide cond-inner"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "cond-meta"
+        }, b.showLiveChip && /*#__PURE__*/ React.createElement("span", {
+            className: "chip"
+        }, /*#__PURE__*/ React.createElement("span", {
+            className: "dot live"
+        }), " Live"), b.updatedLabel && /*#__PURE__*/ React.createElement("span", {
             style: {
-                backgroundImage: "url(assets/photo-resort-crowd.webp)"
+                color: 'var(--snow-400)',
+                fontSize: 13
             }
+        }, b.updatedLabel)), /*#__PURE__*/ React.createElement("div", {
+            className: "cond-stats"
+        }, (b.stats || []).map((s)=>/*#__PURE__*/ React.createElement("div", {
+                key: s._key,
+                className: "cond-stat"
+            }, /*#__PURE__*/ React.createElement(Icon, {
+                name: s.icon || 'snow',
+                size: 20
+            }), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("div", {
+                className: "cond-val"
+            }, s.value), /*#__PURE__*/ React.createElement("div", {
+                className: "cond-sub"
+            }, /*#__PURE__*/ React.createElement("b", null, s.label), s.detail && /*#__PURE__*/ React.createElement(React.Fragment, null, " · ", s.detail)))))), /*#__PURE__*/ React.createElement(L, {
+            link: b.reportLink,
+            className: "btn btn-ghost btn-sm"
+        })));
+    }
+    function RichTextBlock({ b }) {
+        return /*#__PURE__*/ React.createElement("section", {
+            className: 'section ' + (b.tintedBackground ? 'section-tint' : '')
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: b.width === 'wide' ? 'container-wide' : 'container-wide article-wrap'
+        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement(SectionHead, {
+            heading: b.heading
+        })), /*#__PURE__*/ React.createElement(R, {
+            d: 1
+        }, /*#__PURE__*/ React.createElement(PortableText, {
+            blocks: b.content
+        }))));
+    }
+    function FeatureGridBlock({ b }) {
+        return /*#__PURE__*/ React.createElement("section", {
+            className: 'section ' + (b.tintedBackground ? 'section-tint' : '')
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "container-wide"
+        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement(SectionHead, {
+            heading: b.heading
+        })), /*#__PURE__*/ React.createElement("div", {
+            className: "feat-grid"
+        }, (b.features || []).map((f, i)=>/*#__PURE__*/ React.createElement(R, {
+                key: f._key,
+                d: i
+            }, /*#__PURE__*/ React.createElement("div", {
+                className: "feat"
+            }, f.badge && /*#__PURE__*/ React.createElement("span", {
+                className: "chip",
+                style: {
+                    marginBottom: 'var(--sp-3)'
+                }
+            }, f.badge), f.icon && /*#__PURE__*/ React.createElement("div", {
+                className: "icon-wrap"
+            }, /*#__PURE__*/ React.createElement(Icon, {
+                name: f.icon,
+                size: 20
+            })), /*#__PURE__*/ React.createElement("h3", null, f.title), f.body && /*#__PURE__*/ React.createElement("p", null, f.body)))))));
+    }
+    function QuoteBlock({ b }) {
+        const bg = sanityImageUrl(b.backgroundImage, {
+            w: 2000
+        });
+        return /*#__PURE__*/ React.createElement("div", {
+            className: "full-bleed",
+            style: bg ? {
+                backgroundImage: `url(${bg})`
+            } : undefined
         }, /*#__PURE__*/ React.createElement("div", {
             className: "full-bleed-overlay"
         }), /*#__PURE__*/ React.createElement("div", {
             className: "container full-bleed-content"
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
+        }, b.eyebrow && /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
             className: "eyebrow",
             style: {
                 color: 'var(--brand-ice)'
             }
-        }, "Sixty winters in")), /*#__PURE__*/ React.createElement(R, {
+        }, b.eyebrow)), /*#__PURE__*/ React.createElement(R, {
             d: 1
         }, /*#__PURE__*/ React.createElement("h2", {
             className: "editorial-quote"
-        }, '"Last lodge on the Avenue.', /*#__PURE__*/ React.createElement("br", null), 'Ski straight in off Standard."')), /*#__PURE__*/ React.createElement(R, {
+        }, (b.quote || '').split('\n').map((line, i)=>/*#__PURE__*/ React.createElement(React.Fragment, {
+                key: i
+            }, i > 0 && /*#__PURE__*/ React.createElement("br", null), line)))), b.attribution && /*#__PURE__*/ React.createElement(R, {
             d: 2
         }, /*#__PURE__*/ React.createElement("div", {
             style: {
@@ -1164,54 +1060,588 @@
                 letterSpacing: '.1em',
                 textTransform: 'uppercase'
             }
-        }, "— Mitre Ski Club · Est. 1962")))), /*#__PURE__*/ React.createElement("section", {
+        }, b.attribution))));
+    }
+    function CtaBandBlock({ b }) {
+        return /*#__PURE__*/ React.createElement(MemberBand, {
+            band: b
+        });
+    }
+    function NoticeBlock({ b }) {
+        return /*#__PURE__*/ React.createElement("section", {
             className: "section",
-            ref: whyRef
+            style: {
+                paddingBottom: 0
+            }
         }, /*#__PURE__*/ React.createElement("div", {
             className: "container-wide"
         }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
-            className: "section-head"
-        }, /*#__PURE__*/ React.createElement("span", {
+            className: "shop-notice"
+        }, /*#__PURE__*/ React.createElement(Icon, {
+            name: b.icon || 'info',
+            size: 18,
+            stroke: 2
+        }), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement(PortableText, {
+            blocks: b.content
+        }))))));
+    }
+    function ForecastBlock({ b }) {
+        return /*#__PURE__*/ React.createElement("section", {
+            className: "section"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "container-wide"
+        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement(SectionHead, {
+            heading: b.heading
+        })), /*#__PURE__*/ React.createElement(R, {
+            d: 1
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "forecast-grid"
+        }, (b.days || []).map((d)=>/*#__PURE__*/ React.createElement("div", {
+                key: d._key,
+                className: "forecast-card"
+            }, /*#__PURE__*/ React.createElement("div", {
+                style: {
+                    fontSize: 11,
+                    letterSpacing: '.14em',
+                    textTransform: 'uppercase',
+                    color: 'var(--ink-soft)',
+                    fontWeight: 700
+                }
+            }, d.day), /*#__PURE__*/ React.createElement("div", {
+                style: {
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 500,
+                    fontSize: 22,
+                    margin: '4px 0'
+                }
+            }, d.date), /*#__PURE__*/ React.createElement("div", {
+                style: {
+                    margin: '12px 0',
+                    color: 'var(--brand-glacier)'
+                }
+            }, /*#__PURE__*/ React.createElement(Icon, {
+                name: d.icon || 'snow',
+                size: 28,
+                stroke: 1.4
+            })), /*#__PURE__*/ React.createElement("div", {
+                style: {
+                    fontSize: 14,
+                    fontWeight: 600
+                }
+            }, d.high, "° / ", /*#__PURE__*/ React.createElement("span", {
+                className: "muted"
+            }, d.low, "°")), /*#__PURE__*/ React.createElement("div", {
+                style: {
+                    fontSize: 12,
+                    color: 'var(--ink-muted)',
+                    marginTop: 4
+                }
+            }, d.snowCm, " cm")))))));
+    }
+    function ReviewsBlock({ b }) {
+        const [ref, vis] = useReveal({
+            th: .05
+        });
+        return /*#__PURE__*/ React.createElement("section", {
+            className: "reviews-section",
+            ref: ref
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "container-wide"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "reviews-header"
+        }, /*#__PURE__*/ React.createElement("div", null, b.heading && b.heading.eyebrow && /*#__PURE__*/ React.createElement("span", {
             className: "eyebrow"
-        }, "Why members stay"), /*#__PURE__*/ React.createElement("h2", {
+        }, b.heading.eyebrow), b.heading && b.heading.heading && /*#__PURE__*/ React.createElement("h2", {
             style: {
                 marginTop: 14
             }
-        }, "A small lodge, run by its members."), /*#__PURE__*/ React.createElement("p", {
-            className: "lead",
+        }, b.heading.heading)), /*#__PURE__*/ React.createElement("div", {
+            className: "reviews-rating-block"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "reviews-score"
+        }, b.score), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement(Stars, {
+            n: 5
+        }), b.scoreCaption && /*#__PURE__*/ React.createElement("div", {
             style: {
-                color: 'var(--ink-muted)'
+                fontSize: 13,
+                color: 'var(--ink-muted)',
+                marginTop: 5
             }
-        }, "Sixty-odd years of working bees, dinners, snow days and Sunday departures. Mitre is a club, not a hotel — and it shows."))), /*#__PURE__*/ React.createElement("div", {
-            className: "feat-grid"
-        }, [
-            {
-                icon: 'mountain',
-                title: 'Ski-in, ski-out',
-                body: "The last lodge on The Avenue, with Standard at the front door and the beginner area five minutes' walk away."
-            },
-            {
-                icon: 'users',
-                title: 'Communal by design',
-                body: "Twelve rooms, shared kitchen, big drying room, and a TV room that gets loud after a powder day."
-            },
-            {
-                icon: 'calendar',
-                title: 'Open year-round',
-                body: "Winter is the big show, but the lodge is also available for groups in summer — mountain biking, walking, the family."
+        }, b.scoreCaption), b.allReviewsLink && /*#__PURE__*/ React.createElement(L, {
+            link: b.allReviewsLink,
+            style: {
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                marginTop: 10,
+                fontSize: 13,
+                color: 'var(--ink-muted)',
+                borderBottom: '1px solid var(--line)',
+                paddingBottom: 2
             }
-        ].map((f, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: i,
-                d: i
+        }, b.allReviewsLink.label, " ", /*#__PURE__*/ React.createElement(Icon, {
+            name: "arrow-up-right",
+            size: 13
+        }))))), /*#__PURE__*/ React.createElement("div", {
+            className: "reviews-grid"
+        }, (b.reviews || []).map((r, i)=>/*#__PURE__*/ React.createElement(R, {
+                key: r._key,
+                d: i % 3
             }, /*#__PURE__*/ React.createElement("div", {
-                className: "feat"
+                className: "review-card"
+            }, /*#__PURE__*/ React.createElement("div", {
+                className: "review-card-top"
+            }, /*#__PURE__*/ React.createElement("div", {
+                className: "review-avatar"
+            }, r.initials), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("div", {
+                style: {
+                    fontWeight: 600,
+                    fontSize: 14,
+                    color: 'var(--ink)'
+                }
+            }, r.name), /*#__PURE__*/ React.createElement(Stars, {
+                n: r.rating,
+                size: 12
+            }))), /*#__PURE__*/ React.createElement("blockquote", null, '"', r.text, '"'), /*#__PURE__*/ React.createElement("div", {
+                className: "review-card-meta"
+            }, /*#__PURE__*/ React.createElement("span", null, r.date), r.attribution && /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement("span", {
+                style: {
+                    opacity: .35
+                }
+            }, "·"), /*#__PURE__*/ React.createElement("span", null, r.attribution)))))))));
+    }
+    function InfoSectionsBlock({ b }) {
+        const sections = b.sections || [];
+        const toc = sections.map((s)=>[
+                s.anchor && s.anchor.current,
+                s.title
+            ]).filter((x)=>x[0]);
+        const [active, setActive] = useState(toc.length ? toc[0][0] : null);
+        useEffect(()=>{
+            const onS = ()=>{
+                let cur = toc.length ? toc[0][0] : null;
+                for (const [id] of toc){
+                    const el = document.getElementById(id);
+                    if (el && el.getBoundingClientRect().top <= 116) cur = id;
+                }
+                setActive(cur);
+            };
+            window.addEventListener('scroll', onS, {
+                passive: true
+            });
+            return ()=>window.removeEventListener('scroll', onS);
+        // eslint-disable-next-line
+        }, [
+            sections.length
+        ]);
+        return /*#__PURE__*/ React.createElement("section", {
+            className: "section"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "container-wide info-layout"
+        }, /*#__PURE__*/ React.createElement("aside", {
+            className: "info-toc"
+        }, /*#__PURE__*/ React.createElement("h5", null, b.sidebarTitle || 'On this page'), toc.map(([id, lbl])=>/*#__PURE__*/ React.createElement("a", {
+                key: id,
+                href: '#' + id,
+                className: active === id ? 'active' : ''
+            }, lbl))), /*#__PURE__*/ React.createElement("div", null, sections.map((s)=>/*#__PURE__*/ React.createElement(R, {
+                key: s._key
+            }, /*#__PURE__*/ React.createElement("div", {
+                className: "info-block",
+                id: s.anchor && s.anchor.current
+            }, /*#__PURE__*/ React.createElement("h2", null, s.title), /*#__PURE__*/ React.createElement(PortableText, {
+                blocks: s.content
+            }), s.image && /*#__PURE__*/ React.createElement(Photo, {
+                className: "info-photo",
+                src: sanityImageUrl(s.image, {
+                    w: 1000
+                }),
+                label: s.image.alt
+            }), (s.cards || []).length > 0 && /*#__PURE__*/ React.createElement("div", {
+                className: "feat-grid",
+                style: {
+                    marginTop: 'var(--sp-6)'
+                }
+            }, s.cards.map((c)=>/*#__PURE__*/ React.createElement("div", {
+                    key: c._key,
+                    className: "feat",
+                    style: {
+                        padding: 'var(--sp-5)'
+                    }
+                }, /*#__PURE__*/ React.createElement("h4", null, c.title), c.detail && /*#__PURE__*/ React.createElement("p", {
+                    className: "muted",
+                    style: {
+                        fontSize: 14,
+                        margin: '6px 0 0'
+                    }
+                }, c.detail)))), s.button && /*#__PURE__*/ React.createElement(CTA, {
+                cta: s.button,
+                size: "btn-sm",
+                className: ""
+            })))))));
+    }
+    function ContactListBlock({ b }) {
+        return /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", null, b.heading && b.heading.heading && /*#__PURE__*/ React.createElement("h2", null, b.heading.heading), b.heading && b.heading.intro && /*#__PURE__*/ React.createElement("p", {
+            className: "muted",
+            style: {
+                maxWidth: '40ch',
+                marginBottom: 'var(--sp-6)'
+            }
+        }, b.heading.intro), /*#__PURE__*/ React.createElement("div", {
+            className: "contact-list"
+        }, (b.contacts || []).map((c)=>/*#__PURE__*/ React.createElement("div", {
+                key: c._key,
+                className: "contact-item"
+            }, /*#__PURE__*/ React.createElement("span", null, c.label), /*#__PURE__*/ React.createElement("span", {
+                className: "val"
+            }, c.value))))));
+    }
+    function LinkListBlock({ b }) {
+        return /*#__PURE__*/ React.createElement(R, {
+            d: 1
+        }, /*#__PURE__*/ React.createElement("div", null, b.heading && b.heading.heading && /*#__PURE__*/ React.createElement("h2", null, b.heading.heading), b.heading && b.heading.intro && /*#__PURE__*/ React.createElement("p", {
+            className: "muted",
+            style: {
+                maxWidth: '40ch',
+                marginBottom: 'var(--sp-6)'
+            }
+        }, b.heading.intro), /*#__PURE__*/ React.createElement("div", {
+            className: "link-list"
+        }, (b.links || []).map((l)=>/*#__PURE__*/ React.createElement("a", {
+                key: l._key,
+                href: l.href,
+                target: targetFor(l),
+                rel: relFor(l)
+            }, /*#__PURE__*/ React.createElement("span", null, l.label), /*#__PURE__*/ React.createElement(Icon, {
+                name: "arrow-up-right",
+                size: 16
+            }))))));
+    }
+    function LinkCardsBlock({ b }) {
+        return /*#__PURE__*/ React.createElement("div", null, b.heading && b.heading.heading && /*#__PURE__*/ React.createElement("h2", null, b.heading.heading), b.heading && b.heading.intro && /*#__PURE__*/ React.createElement("p", {
+            className: "muted",
+            style: {
+                marginTop: 'var(--sp-3)',
+                marginBottom: 'var(--sp-2)'
+            }
+        }, b.heading.intro), /*#__PURE__*/ React.createElement("div", {
+            className: "useful-links-grid"
+        }, (b.cards || []).map((c, i)=>/*#__PURE__*/ React.createElement(R, {
+                key: c._key,
+                d: i % 3
+            }, /*#__PURE__*/ React.createElement("a", {
+                href: c.href,
+                target: "_blank",
+                rel: "noopener noreferrer",
+                className: "useful-link-card"
             }, /*#__PURE__*/ React.createElement("div", {
                 className: "icon-wrap"
             }, /*#__PURE__*/ React.createElement(Icon, {
-                name: f.icon,
-                size: 20
-            })), /*#__PURE__*/ React.createElement("h3", null, f.title), /*#__PURE__*/ React.createElement("p", null, f.body))))))), /*#__PURE__*/ React.createElement("section", {
-            className: "section section-tint"
+                name: c.icon || 'external',
+                size: 18
+            })), /*#__PURE__*/ React.createElement("h4", null, c.title), c.subtitle && /*#__PURE__*/ React.createElement("p", null, c.subtitle))))));
+    }
+    function AddressBlock({ b }) {
+        return /*#__PURE__*/ React.createElement("div", {
+            style: {
+                marginTop: 'var(--sp-10)',
+                padding: 'var(--sp-6)',
+                background: 'var(--bg-elev)',
+                border: '1px solid var(--line)',
+                borderRadius: 'var(--r-lg)'
+            }
+        }, b.heading && /*#__PURE__*/ React.createElement("h3", {
+            style: {
+                marginBottom: 'var(--sp-3)'
+            }
+        }, b.heading), /*#__PURE__*/ React.createElement("div", {
+            style: {
+                color: 'var(--ink-muted)',
+                fontSize: 15,
+                lineHeight: 1.8
+            }
+        }, /*#__PURE__*/ React.createElement(PortableText, {
+            blocks: b.content
+        })));
+    }
+    function StepsBlock({ b }) {
+        const tabs = b.tabs || [];
+        const [tab, setTab] = useState(0);
+        const steps = tabs[tab] && tabs[tab].steps || [];
+        return /*#__PURE__*/ React.createElement("div", null, b.heading && b.heading.heading && /*#__PURE__*/ React.createElement("h2", null, b.heading.heading), tabs.length > 1 && /*#__PURE__*/ React.createElement("div", {
+            className: "transport-tabs",
+            style: {
+                marginTop: 'var(--sp-5)'
+            }
+        }, tabs.map((t, i)=>/*#__PURE__*/ React.createElement("button", {
+                key: t._key,
+                className: 'transport-tab ' + (tab === i ? 'active' : ''),
+                onClick: ()=>setTab(i)
+            }, t.icon && /*#__PURE__*/ React.createElement(Icon, {
+                name: t.icon,
+                size: 15
+            }), " ", t.label))), steps.map((s, i)=>/*#__PURE__*/ React.createElement("div", {
+                key: s._key,
+                className: "dir-step"
+            }, /*#__PURE__*/ React.createElement("div", {
+                className: "dir-num"
+            }, i + 1), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h4", null, s.title), /*#__PURE__*/ React.createElement("p", null, s.body)))));
+    }
+    /* ── third-party embed blocks ────────────────────────────── */ function YoutubeBlock({ b }) {
+        const src = youtubeEmbedUrl(b.url);
+        return /*#__PURE__*/ React.createElement("section", {
+            className: 'section ' + (b.tintedBackground ? 'section-tint' : '')
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "container-wide"
+        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement(SectionHead, {
+            heading: b.heading
+        })), /*#__PURE__*/ React.createElement(R, {
+            d: 1
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "cam-embed",
+            style: b.height ? {
+                height: b.height
+            } : undefined
+        }, /*#__PURE__*/ React.createElement("iframe", {
+            src: src,
+            title: b.title,
+            allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
+            allowFullScreen: true,
+            loading: "lazy"
+        }))), b.moreLink && /*#__PURE__*/ React.createElement(R, {
+            d: 2
+        }, /*#__PURE__*/ React.createElement("div", {
+            style: {
+                display: 'flex',
+                justifyContent: 'flex-end',
+                marginTop: 'var(--sp-4)'
+            }
+        }, /*#__PURE__*/ React.createElement(L, {
+            link: b.moreLink,
+            className: "btn btn-ghost btn-sm"
+        })))));
+    }
+    function MapBlock({ b }) {
+        return /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
+            className: 'map-embed ' + (b.grayscale === false ? 'map-embed--colour' : '')
+        }, /*#__PURE__*/ React.createElement("iframe", {
+            src: b.embedUrl,
+            title: b.title,
+            allowFullScreen: "",
+            loading: "lazy",
+            referrerPolicy: "no-referrer-when-downgrade"
+        })));
+    }
+    function InstagramBlock({ b }) {
+        return /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
+            className: "gallery-insta-cta"
+        }, /*#__PURE__*/ React.createElement("div", {
+            style: {
+                fontSize: 32,
+                marginBottom: 'var(--sp-3)'
+            }
+        }, "📸"), /*#__PURE__*/ React.createElement("h3", null, b.heading), b.body && /*#__PURE__*/ React.createElement("p", {
+            style: {
+                color: 'rgba(255,255,255,.8)',
+                margin: '0 auto var(--sp-6)',
+                maxWidth: '44ch'
+            }
+        }, b.body), /*#__PURE__*/ React.createElement("a", {
+            href: `https://www.instagram.com/${b.handle}/`,
+            target: "_blank",
+            rel: "noopener noreferrer",
+            className: "btn btn-sm",
+            style: {
+                background: 'rgba(255,255,255,.2)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,.3)'
+            }
+        }, /*#__PURE__*/ React.createElement(Icon, {
+            name: "instagram",
+            size: 15
+        }), " @", b.handle), b.footnote && /*#__PURE__*/ React.createElement("div", {
+            style: {
+                color: 'rgba(255,255,255,.5)',
+                marginTop: 'var(--sp-4)',
+                fontSize: 13
+            }
+        }, /*#__PURE__*/ React.createElement(PortableText, {
+            blocks: b.footnote
+        }))));
+    }
+    function IframeBlock({ b }) {
+        return /*#__PURE__*/ React.createElement("section", {
+            className: "section"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "container-wide"
+        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement(SectionHead, {
+            heading: b.heading
+        })), /*#__PURE__*/ React.createElement(R, {
+            d: 1
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "cam-embed",
+            style: b.height ? {
+                height: b.height
+            } : undefined
+        }, /*#__PURE__*/ React.createElement("iframe", {
+            src: b.url,
+            title: b.title,
+            allowFullScreen: true,
+            loading: "lazy"
+        }), /*#__PURE__*/ React.createElement("div", {
+            className: "cam-embed-fallback"
+        }, /*#__PURE__*/ React.createElement(Icon, {
+            name: "external",
+            size: 40,
+            stroke: 1.3
+        }), /*#__PURE__*/ React.createElement("p", {
+            style: {
+                margin: 'var(--sp-3) 0 var(--sp-5)',
+                color: 'var(--ink-muted)',
+                fontSize: 15
+            }
+        }, "This content can't be shown here."), /*#__PURE__*/ React.createElement(L, {
+            link: b.fallbackLink,
+            className: "btn btn-primary btn-sm"
+        }))))));
+    }
+    function ServiceLinkBlock({ b }) {
+        return /*#__PURE__*/ React.createElement("section", {
+            className: "section"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "container-wide"
+        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
+            className: "feat",
+            style: {
+                maxWidth: 640
+            }
+        }, b.icon && /*#__PURE__*/ React.createElement("div", {
+            className: "icon-wrap"
+        }, /*#__PURE__*/ React.createElement(Icon, {
+            name: b.icon,
+            size: 20
+        })), /*#__PURE__*/ React.createElement("h3", null, b.heading), b.body && /*#__PURE__*/ React.createElement("p", null, b.body), /*#__PURE__*/ React.createElement("div", {
+            style: {
+                marginTop: 'var(--sp-4)'
+            }
+        }, /*#__PURE__*/ React.createElement(CTA, {
+            cta: b.button,
+            size: "btn-sm"
+        })), b.footnote && /*#__PURE__*/ React.createElement("p", {
+            className: "muted",
+            style: {
+                fontSize: 13,
+                marginTop: 'var(--sp-3)'
+            }
+        }, b.footnote)))));
+    }
+    /* ── collection blocks ───────────────────────────────────── */ const POST_FIELDS = `_id,title,"slug":slug.current,category,publishedAt,readingTimeMinutes,excerpt,mainImage{alt,asset}`;
+    function NewsListBlock({ b }) {
+        const archive = b.layout === 'archive';
+        const q = archive ? `*[_type=="post"]|order(publishedAt desc){${POST_FIELDS}}` : `*[_type=="post"]|order(publishedAt desc)[0...${Math.max(1, Math.min(12, b.limit || 3))}]{${POST_FIELDS}}`;
+        const [posts, loading] = useSanityQuery(q, {}, [
+            b._key
+        ]);
+        const [filter, setFilter] = useState('All');
+        const list = posts || [];
+        if (archive) {
+            const featured = list[0];
+            const rest = list.slice(1);
+            const tags = [
+                'All',
+                ...new Set(list.map((p)=>p.category))
+            ];
+            const visible = rest.filter((p)=>filter === 'All' || p.category === filter);
+            return /*#__PURE__*/ React.createElement("section", {
+                className: 'section ' + (b.tintedBackground ? 'section-tint' : '')
+            }, /*#__PURE__*/ React.createElement("div", {
+                className: "container-wide"
+            }, loading ? /*#__PURE__*/ React.createElement("p", {
+                className: "muted"
+            }, "Loading news…") : !featured ? /*#__PURE__*/ React.createElement("p", {
+                className: "muted"
+            }, "No news posted yet — check back soon.") : /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("article", {
+                className: "news-featured",
+                onClick: ()=>onNav('article', featured.slug),
+                style: {
+                    cursor: 'pointer'
+                }
+            }, /*#__PURE__*/ React.createElement(Photo, {
+                src: sanityImageUrl(featured.mainImage, {
+                    w: 960
+                }),
+                label: featured.mainImage && featured.mainImage.alt
+            }), /*#__PURE__*/ React.createElement("div", {
+                className: "news-featured-body"
+            }, /*#__PURE__*/ React.createElement("div", {
+                className: "row",
+                style: {
+                    marginBottom: 12
+                }
+            }, /*#__PURE__*/ React.createElement("span", {
+                className: "chip"
+            }, featured.category), /*#__PURE__*/ React.createElement("span", {
+                className: "muted",
+                style: {
+                    fontSize: 13
+                }
+            }, formatDate(featured.publishedAt), " · ", readingTimeLabel(featured.readingTimeMinutes), " read")), /*#__PURE__*/ React.createElement("h2", null, featured.title), /*#__PURE__*/ React.createElement("p", {
+                className: "lead"
+            }, featured.excerpt), /*#__PURE__*/ React.createElement("div", {
+                style: {
+                    marginTop: 'var(--sp-5)'
+                }
+            }, /*#__PURE__*/ React.createElement("span", {
+                className: "btn btn-link"
+            }, "Read the full report ", /*#__PURE__*/ React.createElement(Icon, {
+                name: "arrow",
+                size: 14
+            })))))), b.showFilters !== false && /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
+                style: {
+                    display: 'flex',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    marginBottom: 'var(--sp-6)'
+                }
+            }, tags.map((t)=>/*#__PURE__*/ React.createElement("button", {
+                    key: t,
+                    className: 'btn btn-sm ' + (filter === t ? 'btn-primary' : 'btn-ghost'),
+                    onClick: ()=>setFilter(t)
+                }, t)))), /*#__PURE__*/ React.createElement("div", {
+                className: "news-grid"
+            }, visible.map((p, i)=>/*#__PURE__*/ React.createElement(R, {
+                    key: p._id,
+                    d: i % 3
+                }, /*#__PURE__*/ React.createElement("article", {
+                    className: "news-card",
+                    onClick: ()=>onNav('article', p.slug),
+                    style: {
+                        cursor: 'pointer'
+                    }
+                }, /*#__PURE__*/ React.createElement(Photo, {
+                    src: sanityImageUrl(p.mainImage, {
+                        w: 640
+                    }),
+                    label: p.mainImage && p.mainImage.alt,
+                    ratio: "16/10"
+                }), /*#__PURE__*/ React.createElement("div", {
+                    className: "news-card-body"
+                }, /*#__PURE__*/ React.createElement("div", {
+                    className: "meta"
+                }, /*#__PURE__*/ React.createElement("span", {
+                    className: "chip",
+                    style: {
+                        marginRight: 8
+                    }
+                }, p.category), formatDate(p.publishedAt)), /*#__PURE__*/ React.createElement("h3", null, p.title), /*#__PURE__*/ React.createElement("p", null, p.excerpt), /*#__PURE__*/ React.createElement("span", {
+                    className: "more"
+                }, "Read ", /*#__PURE__*/ React.createElement(Icon, {
+                    name: "arrow",
+                    size: 14
+                }))))))))));
+        }
+        return /*#__PURE__*/ React.createElement("section", {
+            className: 'section ' + (b.tintedBackground ? 'section-tint' : '')
         }, /*#__PURE__*/ React.createElement("div", {
             className: "container-wide"
         }, /*#__PURE__*/ React.createElement("div", {
@@ -1223,26 +1653,14 @@
                 gap: 16,
                 marginBottom: 'var(--sp-10)'
             }
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
-            className: "section-head",
-            style: {
-                marginBottom: 0
-            }
-        }, /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow"
-        }, "Latest from the lodge"), /*#__PURE__*/ React.createElement("h2", {
-            style: {
-                marginTop: 14
-            }
-        }, "What's happening on the mountain"))), /*#__PURE__*/ React.createElement(R, {
+        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement(SectionHead, {
+            heading: b.heading
+        })), b.viewAllLink && /*#__PURE__*/ React.createElement(R, {
             d: 1
-        }, /*#__PURE__*/ React.createElement("a", {
-            className: "btn btn-ghost btn-sm",
-            href: "news.html"
-        }, "All news ", /*#__PURE__*/ React.createElement(Icon, {
-            name: "arrow",
-            size: 14
-        })))), /*#__PURE__*/ React.createElement(R, null, postsLoading ? /*#__PURE__*/ React.createElement("div", {
+        }, /*#__PURE__*/ React.createElement(L, {
+            link: b.viewAllLink,
+            className: "btn btn-ghost btn-sm"
+        }))), /*#__PURE__*/ React.createElement(R, null, loading ? /*#__PURE__*/ React.createElement("div", {
             className: "story-rail"
         }, [
             0,
@@ -1251,11 +1669,11 @@
         ].map((i)=>/*#__PURE__*/ React.createElement("div", {
                 key: i,
                 className: "news-card skeleton"
-            }))) : !latestPosts || latestPosts.length === 0 ? /*#__PURE__*/ React.createElement("p", {
+            }))) : list.length === 0 ? /*#__PURE__*/ React.createElement("p", {
             className: "muted"
         }, "No news posted yet — check back soon.") : /*#__PURE__*/ React.createElement("div", {
             className: "story-rail"
-        }, latestPosts.map((p, i)=>/*#__PURE__*/ React.createElement("article", {
+        }, list.map((p, i)=>/*#__PURE__*/ React.createElement("article", {
                 key: p._id,
                 className: "news-card",
                 onClick: ()=>onNav('article', p.slug),
@@ -1282,607 +1700,625 @@
             }, "Read ", i === 0 ? 'article' : '', " ", /*#__PURE__*/ React.createElement(Icon, {
                 name: "arrow",
                 size: 14
-            }))))))))), /*#__PURE__*/ React.createElement(ReviewsSection, null), /*#__PURE__*/ React.createElement(MemberBand, null), /*#__PURE__*/ React.createElement(Footer, null));
+            })))))))));
     }
-    /* ── LODGE ───────────────────────────────────────────────── */ function LodgePage() {
-        const toc = [
-            [
-                'about',
-                'About the lodge'
-            ],
-            [
-                'community',
-                'Community spirit'
-            ],
-            [
-                'location',
-                'Location'
-            ],
-            [
-                'facilities',
-                'Facilities'
-            ],
-            [
-                'check-in',
-                'Check-in'
-            ],
-            [
-                'check-out',
-                'Check-out'
-            ],
-            [
-                'bring',
-                'What to bring'
-            ],
-            [
-                'getting-there',
-                'Getting there'
-            ],
-            [
-                'summer',
-                'Outside ski season'
-            ]
-        ];
-        const [active, setActive] = useState('about');
-        useEffect(()=>{
-            const onS = ()=>{
-                let cur = toc[0][0];
-                for (const [id] of toc){
-                    const el = document.getElementById(id);
-                    if (el && el.getBoundingClientRect().top <= 116) cur = id;
-                }
-                setActive(cur);
-            };
-            window.addEventListener('scroll', onS, {
-                passive: true
-            });
-            return ()=>window.removeEventListener('scroll', onS);
-        }, []);
-        const blocks = [
-            {
-                id: 'about',
-                title: 'About the lodge',
-                content: /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement("p", null, "Mitre Lodge has been on Mt Buller since 1962. We're a small, friendly club run by its members. The lodge holds about forty across twelve rooms — a mix of doubles, singles and bunks, with shared bathrooms and a big communal kitchen."), /*#__PURE__*/ React.createElement(Photo, {
-                    className: "info-photo",
-                    src: "assets/photo-chairlift-golden.jpg",
-                    label: "Mt Buller lifts"
-                }))
-            },
-            {
-                id: 'community',
-                title: 'Community spirit',
-                content: /*#__PURE__*/ React.createElement("p", null, "Mitre is communal by design. Members get involved with meetings and working bees; the lodge manager and members give a warm welcome as new guests arrive. There are smiles in the morning and stories at the end of the day.")
-            },
-            {
-                id: 'location',
-                title: 'Ski-in / Ski-out location',
-                content: /*#__PURE__*/ React.createElement("p", null, "Mitre is at the end of The Avenue, next to the Navy Lodge. Being the last lodge on the road, the views are excellent and access is straight onto Standard (intermediate). Bus Stop No. 9 is two lodges down.")
-            },
-            {
-                id: 'facilities',
-                title: 'Facilities',
-                content: /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement("p", null, "Communal lounge rooms, TV rooms, dining and a large drying room. Twelve bedrooms — 2 to 5-berth, with combinations of doubles, singles and bunks. Each bedroom has a hand basin. The kitchen has a large fridge, gas and electric stoves, ovens, microwaves, dishwashers."), /*#__PURE__*/ React.createElement("div", {
-                    className: "feat-grid",
-                    style: {
-                        marginTop: 'var(--sp-6)'
-                    }
-                }, [
-                    [
-                        '12 bedrooms',
-                        '2–5 berths · all with hand basins'
-                    ],
-                    [
-                        'Shared kitchen',
-                        'Allocated fridge & pantry shelves'
-                    ],
-                    [
-                        'Drying room',
-                        'Boots off in the foyer, please'
-                    ]
-                ].map(([h, s])=>/*#__PURE__*/ React.createElement("div", {
-                        key: h,
-                        className: "feat",
-                        style: {
-                            padding: 'var(--sp-5)'
-                        }
-                    }, /*#__PURE__*/ React.createElement("h4", null, h), /*#__PURE__*/ React.createElement("p", {
-                        className: "muted",
-                        style: {
-                            fontSize: 14,
-                            margin: '6px 0 0'
-                        }
-                    }, s)))))
-            },
-            {
-                id: 'check-in',
-                title: 'Check-in',
-                content: /*#__PURE__*/ React.createElement("p", null, "Ring the doorbell or use the security code in your booking confirmation email. Ski boots go in the drying room before heading into the lodge. Your room allocation will be on the whiteboard in the foyer. Changeover is by 5pm.")
-            },
-            {
-                id: 'check-out',
-                title: 'Check-out',
-                content: /*#__PURE__*/ React.createElement("p", null, "You're responsible for cleaning your room — wipe the basin and tiles, vacuum the carpet. Clear your pantry and fridge shelves. All done by 5pm. Taxi: (03) 5777 6070.")
-            },
-            {
-                id: 'bring',
-                title: 'What to bring',
-                content: /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement("p", null, "Doonas and pillows are supplied. Linen isn't — please bring a bottom sheet, top sheet (or sleeping bag), pillow case and a towel."), /*#__PURE__*/ React.createElement("p", null, "Tea, coffee, sugar, jam, honey, sauces and mustards are provided. Bring your own food and drinks. Mansfield IGA delivers: (03) 5775 2014."))
-            },
-            {
-                id: 'getting-there',
-                title: 'Getting there',
-                content: /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement("p", null, "Drive up and park, or take the bus from Mansfield/Merrijig. Fees are paid at the Merrijig gate. Chains must be carried until end of season — hire them in Mansfield."), /*#__PURE__*/ React.createElement("p", null, "Oversnow taxis: Mon–Thu 7am–midnight, Fri 7am–3am, Sat 7am–2am, Sun 7am–midnight. Tell the driver it's next to Navy at the end of The Avenue."), /*#__PURE__*/ React.createElement("a", {
-                    className: "btn btn-ghost btn-sm",
-                    href: "directions.html",
-                    style: {
-                        marginTop: 'var(--sp-4)',
-                        display: 'inline-flex'
-                    }
-                }, /*#__PURE__*/ React.createElement(Icon, {
-                    name: "map-pin",
-                    size: 14
-                }), " Full directions & map"))
-            },
-            {
-                id: 'summer',
-                title: 'Outside ski season',
-                content: /*#__PURE__*/ React.createElement("p", null, "Mountain biking, bushwalking, horse riding, scenic chairlift rides, summer events. The lodge is available for individuals or group bookings out of season. We'll send keys and walk you through opening and security.")
-            }
-        ];
-        return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
-            className: "page-header"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-bg"
-        }, /*#__PURE__*/ React.createElement(Pic, {
-            src: "assets/photo-resort-crowd.jpg",
-            alt: ""
-        }), /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-overlay"
-        })), /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide page-header-inner"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "crumbs"
-        }, /*#__PURE__*/ React.createElement("a", {
-            href: "index.html"
-        }, "Home"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("span", null, "The Lodge")), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow",
-            style: {
-                color: 'var(--brand-ice)'
-            }
-        }, "A guide for members & guests"), /*#__PURE__*/ React.createElement("h1", {
-            style: {
-                marginTop: 14,
-                color: '#fff'
-            }
-        }, "The Lodge."), /*#__PURE__*/ React.createElement("p", {
-            style: {
-                fontFamily: 'var(--font-editorial)',
-                fontStyle: 'italic',
-                fontSize: 'var(--fs-24)',
-                color: 'rgba(255,255,255,.75)',
-                marginTop: 'var(--sp-5)',
-                maxWidth: '56ch'
-            }
-        }, "Last lodge on The Avenue. Ski straight in, walk five minutes to the lifts.")), /*#__PURE__*/ React.createElement("div", {
-            className: "hdr-meta"
-        }, [
-            [
-                '12 rooms',
-                '2–5 berths'
-            ],
-            [
-                '~40 beds',
-                'doonas supplied'
-            ],
-            [
-                'Bus stop 9',
-                'two lodges away'
-            ],
-            [
-                'Wi-Fi',
-                'browsing only'
-            ]
-        ].map(([b, s])=>/*#__PURE__*/ React.createElement("div", {
-                key: b
-            }, /*#__PURE__*/ React.createElement("b", null, b), s))))), /*#__PURE__*/ React.createElement("section", {
+    const GALLERY_QUERY = `*[_type=="galleryPhoto"]|order(_createdAt desc){_id,caption,context,category,image{alt,asset}}`;
+    function GalleryGridBlock({ b }) {
+        const [items, loading] = useSanityQuery(GALLERY_QUERY, {}, [
+            b._key
+        ]);
+        const [cat, setCat] = useState('all');
+        const filters = (b.filters || []).length ? b.filters : null;
+        const visible = (items || []).filter((g)=>cat === 'all' || g.category === cat);
+        return /*#__PURE__*/ React.createElement("section", {
             className: "section"
         }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide info-layout"
-        }, /*#__PURE__*/ React.createElement("aside", {
-            className: "info-toc"
-        }, /*#__PURE__*/ React.createElement("h5", null, "On this page"), toc.map(([id, lbl])=>/*#__PURE__*/ React.createElement("a", {
-                key: id,
-                href: '#' + id,
-                className: active === id ? 'active' : ''
-            }, lbl))), /*#__PURE__*/ React.createElement("div", null, blocks.map((b)=>/*#__PURE__*/ React.createElement(R, {
-                key: b.id
+            className: "container-wide"
+        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement(SectionHead, {
+            heading: b.heading
+        })), b.showFilters !== false && filters && /*#__PURE__*/ React.createElement("div", {
+            className: "gallery-filters"
+        }, filters.map((f)=>/*#__PURE__*/ React.createElement("button", {
+                key: f._key,
+                className: 'btn btn-sm ' + (cat === f.category ? 'btn-primary' : 'btn-ghost'),
+                onClick: ()=>setCat(f.category)
+            }, f.label))), loading ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "Loading gallery…") : visible.length === 0 ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "No photos yet — check back soon.") : /*#__PURE__*/ React.createElement("div", {
+            className: "gallery-grid"
+        }, visible.map((g, i)=>/*#__PURE__*/ React.createElement(R, {
+                key: g._id,
+                d: i % 3
             }, /*#__PURE__*/ React.createElement("div", {
-                className: "info-block",
-                id: b.id
-            }, /*#__PURE__*/ React.createElement("h2", null, b.title), b.content)))))), /*#__PURE__*/ React.createElement(MemberBand, null), /*#__PURE__*/ React.createElement(Footer, null));
+                className: "gallery-item"
+            }, /*#__PURE__*/ React.createElement("img", {
+                src: sanityImageUrl(g.image, {
+                    w: 800
+                }),
+                alt: g.image && g.image.alt || g.caption,
+                loading: "lazy"
+            }), /*#__PURE__*/ React.createElement("div", {
+                className: "gallery-caption"
+            }, /*#__PURE__*/ React.createElement("span", null, g.caption), /*#__PURE__*/ React.createElement("small", null, g.context))))))));
     }
-    /* ── BULLER ──────────────────────────────────────────────── */ function BullerPage() {
-        const contacts = [
-            [
-                'Lift tickets, Ski &amp; Snowboard School',
-                '(03) 5777 7800'
-            ],
-            [
-                'Mt Buller taxis',
-                '(03) 5777 6070'
-            ],
-            [
-                'Resort Management (gate, parking)',
-                '(03) 5777 6077'
-            ],
-            [
-                'Towing &amp; chain fitting',
-                '0427 077 572'
-            ],
-            [
-                'Ski Patrol',
-                '(03) 5777 7808'
-            ],
-            [
-                'Emergencies (Fire / Ambo / Police)',
-                '000'
-            ],
-            [
-                'Buller Medical Centre (winter)',
-                '(03) 5777 6185'
-            ],
-            [
-                'Mansfield IGA (delivers to Mitre)',
-                '(03) 5775 2014'
-            ]
-        ];
-        const links = [
-            {
-                label: 'Mt Buller website',
-                url: 'https://www.mtbuller.com.au/'
-            },
-            {
-                label: 'Resort entry &amp; taxis',
-                url: 'https://www.mtbuller.com.au/winter/plan-your-trip/getting-here'
-            },
-            {
-                label: 'Lift passes',
-                url: 'https://www.mtbuller.com.au/winter/tickets-passes/lift-passes'
-            },
-            {
-                label: 'Snow cams',
-                url: 'https://www.mtbuller.com.au/winter/weather/web-cams'
-            },
-            {
-                label: 'Full snow report',
-                url: 'https://www.mtbuller.com.au/winter/the-mountain/snow-report'
-            },
-            {
-                label: 'BoM forecast',
-                url: 'https://www.bom.gov.au/vic/forecasts/alpine.shtml'
-            },
-            {
-                label: 'Resort maps',
-                url: 'https://www.mtbuller.com.au/winter/the-mountain/trail-map'
-            },
-            {
-                label: 'Race results',
-                url: 'https://www.mtbuller.com.au/winter/on-the-mountain/ski-race'
+    const GEAR_QUERY = `*[_type=="gearListing"]|order(postedAt desc){_id,title,category,size,price,status,seller,postedAt,image{alt,asset},description}`;
+    function GearGridBlock({ b }) {
+        const [gear, loading] = useSanityQuery(GEAR_QUERY, {}, [
+            b._key
+        ]);
+        const [cat, setCat] = useState('All');
+        const filters = (b.filters || []).length ? b.filters : null;
+        let visible = (gear || []).filter((g)=>cat === 'All' || g.category === cat);
+        if (b.hideSold) visible = visible.filter((g)=>g.status !== 'sold');
+        return /*#__PURE__*/ React.createElement("section", {
+            className: "section",
+            style: {
+                paddingTop: 'var(--sp-10)'
             }
-        ];
-        const days = [
-            {
-                d: 'Tue',
-                n: '5',
-                hi: '−2',
-                lo: '−8',
-                sn: '12',
-                icon: 'cloud-snow'
-            },
-            {
-                d: 'Wed',
-                n: '6',
-                hi: '0',
-                lo: '−6',
-                sn: '4',
-                icon: 'cloud-snow'
-            },
-            {
-                d: 'Thu',
-                n: '7',
-                hi: '2',
-                lo: '−4',
-                sn: '0',
-                icon: 'sun'
-            },
-            {
-                d: 'Fri',
-                n: '8',
-                hi: '−1',
-                lo: '−7',
-                sn: '8',
-                icon: 'cloud-snow'
-            },
-            {
-                d: 'Sat',
-                n: '9',
-                hi: '−3',
-                lo: '−10',
-                sn: '22',
-                icon: 'snow'
-            },
-            {
-                d: 'Sun',
-                n: '10',
-                hi: '−4',
-                lo: '−11',
-                sn: '18',
-                icon: 'snow'
-            },
-            {
-                d: 'Mon',
-                n: '11',
-                hi: '−2',
-                lo: '−9',
-                sn: '6',
-                icon: 'cloud-snow'
-            }
-        ];
-        return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
-            className: "page-header"
         }, /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-bg"
-        }, /*#__PURE__*/ React.createElement("video", {
-            autoPlay: true,
-            muted: true,
-            loop: true,
-            playsInline: true,
-            poster: "assets/photo-blue-sky-resort.webp",
+            className: "container-wide"
+        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement(SectionHead, {
+            heading: b.heading
+        })), b.showFilters !== false && filters && /*#__PURE__*/ React.createElement("div", {
+            className: "gear-filters"
+        }, filters.map((c)=>/*#__PURE__*/ React.createElement("button", {
+                key: c,
+                className: 'btn btn-sm ' + (cat === c ? 'btn-primary' : 'btn-ghost'),
+                onClick: ()=>setCat(c)
+            }, c))), loading ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "Loading listings…") : visible.length === 0 ? /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "No gear listed right now — check back soon.") : /*#__PURE__*/ React.createElement("div", {
+            className: "gear-grid"
+        }, visible.map((g, i)=>/*#__PURE__*/ React.createElement(R, {
+                key: g._id,
+                d: i % 3
+            }, /*#__PURE__*/ React.createElement("div", {
+                className: "gear-card"
+            }, /*#__PURE__*/ React.createElement("div", {
+                className: "gear-img"
+            }, /*#__PURE__*/ React.createElement(Photo, {
+                src: sanityImageUrl(g.image, {
+                    w: 640
+                }),
+                ratio: "4/3",
+                label: g.category
+            }), /*#__PURE__*/ React.createElement("span", {
+                className: 'gear-badge ' + (g.status === 'sold' ? 'sold' : g.status === 'reserved' ? 'reserved' : '')
+            }, g.status === 'available' ? g.category : g.status)), /*#__PURE__*/ React.createElement("div", {
+                className: "gear-body"
+            }, /*#__PURE__*/ React.createElement("h3", null, g.title), /*#__PURE__*/ React.createElement("div", {
+                className: "gear-size"
+            }, g.size), /*#__PURE__*/ React.createElement("p", {
+                className: "gear-desc"
+            }, g.description), /*#__PURE__*/ React.createElement("div", {
+                className: "gear-seller"
+            }, /*#__PURE__*/ React.createElement(Icon, {
+                name: "users",
+                size: 13
+            }), g.seller, " · ", timeAgo(g.postedAt)), /*#__PURE__*/ React.createElement("div", {
+                className: "gear-price"
+            }, g.status === 'sold' ? /*#__PURE__*/ React.createElement("span", {
+                style: {
+                    color: 'var(--ink-soft)',
+                    fontSize: 'var(--fs-18)'
+                }
+            }, "Sold") : `$${g.price}`)), g.status !== 'sold' && /*#__PURE__*/ React.createElement("div", {
+                className: "gear-actions"
+            }, /*#__PURE__*/ React.createElement("a", {
+                className: "btn btn-primary btn-sm",
+                href: b.contactButtonHref || 'login.html',
+                style: {
+                    flex: 1
+                }
+            }, /*#__PURE__*/ React.createElement(Icon, {
+                name: "lock",
+                size: 13
+            }), " ", b.contactButtonLabel || 'Contact seller'))))))));
+    }
+    /* ── form blocks ─────────────────────────────────────────── */ function EnquiryFormBlock({ b }) {
+        const [done, setDone] = useState(false);
+        const [form, setForm] = useState({
+            name: '',
+            email: '',
+            phone: '',
+            interest: '',
+            message: ''
+        });
+        const sb = b.sidebar || {};
+        return /*#__PURE__*/ React.createElement("section", {
+            className: "section"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "container-wide enquire-grid"
+        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", null, sb.heading && /*#__PURE__*/ React.createElement("h2", {
+            style: {
+                fontSize: 'var(--fs-32)'
+            }
+        }, sb.heading), sb.intro && /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, sb.intro), (sb.steps || []).length > 0 && /*#__PURE__*/ React.createElement("ol", {
+            className: "muted",
+            style: {
+                paddingLeft: '1.2em',
+                lineHeight: 1.8,
+                marginTop: 'var(--sp-5)'
+            }
+        }, sb.steps.map((s)=>/*#__PURE__*/ React.createElement("li", {
+                key: s._key
+            }, /*#__PURE__*/ React.createElement("b", {
+                style: {
+                    color: 'var(--ink)'
+                }
+            }, s.title), " ", s.body))), (sb.contacts || []).length > 0 && /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement("hr", {
+            className: "divider"
+        }), /*#__PURE__*/ React.createElement("h3", null, sb.contactsHeading || 'Direct contacts'), /*#__PURE__*/ React.createElement("div", {
+            className: "contact-list",
+            style: {
+                marginTop: 'var(--sp-4)'
+            }
+        }, sb.contacts.map((c)=>/*#__PURE__*/ React.createElement("div", {
+                key: c._key,
+                className: "contact-item"
+            }, /*#__PURE__*/ React.createElement("span", null, c.label), /*#__PURE__*/ React.createElement("span", {
+                className: "val"
+            }, c.value))))))), /*#__PURE__*/ React.createElement(R, {
+            d: 1
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "form-card"
+        }, done ? /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("div", {
+            className: "form-success"
+        }, /*#__PURE__*/ React.createElement(Icon, {
+            name: "check",
+            size: 20
+        }), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("b", null, b.successHeading), /*#__PURE__*/ React.createElement("br", null), b.successBody)), /*#__PURE__*/ React.createElement("button", {
+            className: "btn btn-ghost",
+            style: {
+                marginTop: 'var(--sp-6)'
+            },
+            onClick: ()=>{
+                setDone(false);
+                setForm({
+                    name: '',
+                    email: '',
+                    phone: '',
+                    interest: '',
+                    message: ''
+                });
+            }
+        }, "Send another")) : /*#__PURE__*/ React.createElement("form", {
+            onSubmit: (e)=>{
+                e.preventDefault();
+                setDone(true);
+            },
+            style: {
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--sp-4)'
+            }
+        }, /*#__PURE__*/ React.createElement("h3", {
+            style: {
+                margin: 0
+            }
+        }, b.heading), b.intro && /*#__PURE__*/ React.createElement("p", {
+            className: "muted",
+            style: {
+                margin: 0,
+                fontSize: 14
+            }
+        }, b.intro), /*#__PURE__*/ React.createElement("div", {
+            className: "form-row-2"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "field"
+        }, /*#__PURE__*/ React.createElement("label", {
+            htmlFor: "ef-first"
+        }, "First name *"), /*#__PURE__*/ React.createElement("input", {
+            id: "ef-first",
+            className: "input",
+            required: true,
+            value: form.name,
+            onChange: (e)=>setForm({
+                    ...form,
+                    name: e.target.value
+                })
+        })), /*#__PURE__*/ React.createElement("div", {
+            className: "field"
+        }, /*#__PURE__*/ React.createElement("label", {
+            htmlFor: "ef-last"
+        }, "Last name *"), /*#__PURE__*/ React.createElement("input", {
+            id: "ef-last",
+            className: "input",
+            required: true
+        }))), /*#__PURE__*/ React.createElement("div", {
+            className: "form-row-2"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "field"
+        }, /*#__PURE__*/ React.createElement("label", {
+            htmlFor: "ef-email"
+        }, "Email *"), /*#__PURE__*/ React.createElement("input", {
+            id: "ef-email",
+            className: "input",
+            type: "email",
+            required: true,
+            value: form.email,
+            onChange: (e)=>setForm({
+                    ...form,
+                    email: e.target.value
+                })
+        })), /*#__PURE__*/ React.createElement("div", {
+            className: "field"
+        }, /*#__PURE__*/ React.createElement("label", {
+            htmlFor: "ef-phone"
+        }, "Phone"), /*#__PURE__*/ React.createElement("input", {
+            id: "ef-phone",
+            className: "input",
+            type: "tel",
+            value: form.phone,
+            onChange: (e)=>setForm({
+                    ...form,
+                    phone: e.target.value
+                })
+        }))), (b.topics || []).length > 0 && /*#__PURE__*/ React.createElement("div", {
+            className: "field"
+        }, /*#__PURE__*/ React.createElement("label", {
+            htmlFor: "ef-topic"
+        }, "What's this about?"), /*#__PURE__*/ React.createElement("select", {
+            id: "ef-topic",
+            className: "select",
+            value: form.interest,
+            onChange: (e)=>setForm({
+                    ...form,
+                    interest: e.target.value
+                })
+        }, b.topics.map((t)=>/*#__PURE__*/ React.createElement("option", {
+                key: t._key,
+                value: t.value
+            }, t.label)))), /*#__PURE__*/ React.createElement("div", {
+            className: "field"
+        }, /*#__PURE__*/ React.createElement("label", {
+            htmlFor: "ef-msg"
+        }, "Your message *"), /*#__PURE__*/ React.createElement("textarea", {
+            id: "ef-msg",
+            className: "textarea",
+            required: true,
+            placeholder: b.messagePlaceholder,
+            value: form.message,
+            onChange: (e)=>setForm({
+                    ...form,
+                    message: e.target.value
+                })
+        })), b.consentLabel && /*#__PURE__*/ React.createElement("label", {
+            className: "checkbox",
+            style: {
+                fontSize: 14
+            }
+        }, /*#__PURE__*/ React.createElement("input", {
+            type: "checkbox",
+            required: true
+        }), " ", b.consentLabel), /*#__PURE__*/ React.createElement("button", {
+            type: "submit",
+            className: "btn btn-cta btn-lg",
+            style: {
+                alignSelf: 'flex-start',
+                marginTop: 'var(--sp-2)'
+            }
+        }, b.submitLabel, " ", /*#__PURE__*/ React.createElement("span", {
+            className: "arrow"
+        }, "→")))))));
+    }
+    function LoginFormBlock({ b }) {
+        const [done, setDone] = useState(false);
+        const art = b.art || {};
+        const bg = sanityImageUrl(art.backgroundImage, {
+            w: 1200
+        });
+        return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("div", {
+            className: "login-shell"
+        }, /*#__PURE__*/ React.createElement("aside", {
+            className: "login-art"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "login-art-media"
+        }, bg && /*#__PURE__*/ React.createElement("img", {
+            src: bg,
+            alt: art.backgroundImage && art.backgroundImage.alt || '',
             style: {
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
                 position: 'absolute',
-                inset: 0,
-                zIndex: -2
+                inset: 0
             }
-        }, /*#__PURE__*/ React.createElement("source", {
-            src: "assets/hero2-opt.mp4",
-            type: "video/mp4"
+        }), /*#__PURE__*/ React.createElement("div", {
+            className: "login-art-overlay"
         })), /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-overlay"
-        })), /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide page-header-inner"
+            style: {
+                position: 'relative',
+                zIndex: 1
+            }
         }, /*#__PURE__*/ React.createElement("div", {
-            className: "crumbs"
+            style: {
+                background: 'rgba(255,255,255,.92)',
+                borderRadius: 10,
+                padding: '7px 12px',
+                display: 'inline-block',
+                boxShadow: '0 4px 20px rgba(0,0,0,.3)'
+            }
+        }, /*#__PURE__*/ React.createElement(Logo, {
+            height: 40
+        }))), /*#__PURE__*/ React.createElement("div", {
+            className: "login-art-middle",
+            style: {
+                position: 'relative',
+                zIndex: 1
+            }
+        }, /*#__PURE__*/ React.createElement("p", {
+            className: "editorial login-art-welcome"
+        }, art.welcomeHeading, art.welcomeEmphasis && /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement("br", null), /*#__PURE__*/ React.createElement("em", null, art.welcomeEmphasis))), art.welcomeBody && /*#__PURE__*/ React.createElement("p", {
+            style: {
+                color: 'var(--snow-300)',
+                marginTop: 'var(--sp-5)',
+                maxWidth: '32ch',
+                fontSize: 16,
+                lineHeight: 1.6
+            }
+        }, art.welcomeBody)), art.quote && /*#__PURE__*/ React.createElement("div", {
+            style: {
+                position: 'relative',
+                zIndex: 1
+            }
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "login-art-quote-block"
+        }, /*#__PURE__*/ React.createElement("p", {
+            className: "login-art-quote"
+        }, art.quote), /*#__PURE__*/ React.createElement("span", {
+            style: {
+                color: 'var(--snow-500)',
+                marginTop: 10,
+                fontSize: 12,
+                display: 'block',
+                letterSpacing: '.08em',
+                textTransform: 'uppercase'
+            }
+        }, art.quoteAttribution)))), /*#__PURE__*/ React.createElement("section", {
+            className: "login-form-wrap"
+        }, /*#__PURE__*/ React.createElement("div", {
+            className: "login-form"
         }, /*#__PURE__*/ React.createElement("a", {
+            className: "login-form-back",
             href: "index.html"
-        }, "Home"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("span", null, "Mt Buller")), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow",
-            style: {
-                color: 'var(--brand-ice)'
-            }
-        }, "The mountain · Resort info"), /*#__PURE__*/ React.createElement("h1", {
-            style: {
-                marginTop: 14,
-                color: '#fff'
-            }
-        }, "Mt Buller."), /*#__PURE__*/ React.createElement("p", {
-            style: {
-                fontFamily: 'var(--font-editorial)',
-                fontStyle: 'italic',
-                fontSize: 'var(--fs-24)',
-                color: 'rgba(255,255,255,.75)',
-                marginTop: 'var(--sp-5)'
-            }
-        }, "Everything you'll want bookmarked before you drive up.")))), /*#__PURE__*/ React.createElement(ConditionsStrip, null), /*#__PURE__*/ React.createElement("section", {
-            className: "section"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide"
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
-            className: "section-head"
-        }, /*#__PURE__*/ React.createElement("span", {
+        }, "← Back to mitreskiclub.com"), b.eyebrow && /*#__PURE__*/ React.createElement("span", {
             className: "eyebrow"
-        }, "7-day outlook"), /*#__PURE__*/ React.createElement("h2", {
+        }, b.eyebrow), /*#__PURE__*/ React.createElement("h1", {
             style: {
-                marginTop: 14
+                marginTop: 12
             }
-        }, "Snow & weather forecast"))), /*#__PURE__*/ React.createElement(R, {
-            d: 1
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "forecast-grid"
-        }, days.map((d, i)=>/*#__PURE__*/ React.createElement("div", {
-                key: i,
-                className: "forecast-card"
-            }, /*#__PURE__*/ React.createElement("div", {
-                style: {
-                    fontSize: 11,
-                    letterSpacing: '.14em',
-                    textTransform: 'uppercase',
-                    color: 'var(--ink-soft)',
-                    fontWeight: 700
-                }
-            }, d.d), /*#__PURE__*/ React.createElement("div", {
-                style: {
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 500,
-                    fontSize: 22,
-                    margin: '4px 0'
-                }
-            }, d.n), /*#__PURE__*/ React.createElement("div", {
-                style: {
-                    margin: '12px 0',
-                    color: 'var(--brand-glacier)'
-                }
-            }, /*#__PURE__*/ React.createElement(Icon, {
-                name: d.icon,
-                size: 28,
-                stroke: 1.4
-            })), /*#__PURE__*/ React.createElement("div", {
-                style: {
-                    fontSize: 14,
-                    fontWeight: 600
-                }
-            }, d.hi, "° / ", /*#__PURE__*/ React.createElement("span", {
-                className: "muted"
-            }, d.lo, "°")), /*#__PURE__*/ React.createElement("div", {
-                style: {
-                    fontSize: 12,
-                    color: 'var(--ink-muted)',
-                    marginTop: 4
-                }
-            }, d.sn, " cm"))))))), /*#__PURE__*/ React.createElement("section", {
-            className: "section section-tint"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide"
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
-            className: "section-head",
-            style: {
-                marginBottom: 'var(--sp-8)'
-            }
-        }, /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow"
-        }, "Live from the mountain"), /*#__PURE__*/ React.createElement("h2", {
-            style: {
-                marginTop: 14
-            }
-        }, "Snow cams"), /*#__PURE__*/ React.createElement("p", {
-            className: "lead muted"
-        }, "Check current conditions on the slopes before you head up."))), /*#__PURE__*/ React.createElement(R, {
-            d: 1
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "cam-embed"
-        }, /*#__PURE__*/ React.createElement("iframe", {
-            src: "https://www.youtube.com/embed/0OtVlfDj2w8?rel=0&modestbranding=1",
-            title: "Mt Buller live snow cam",
-            allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
-            allowFullScreen: true,
-            loading: "lazy"
-        }))), /*#__PURE__*/ React.createElement(R, {
-            d: 2
-        }, /*#__PURE__*/ React.createElement("div", {
+        }, b.heading), b.intro && /*#__PURE__*/ React.createElement("p", {
+            className: "small"
+        }, b.intro), done && /*#__PURE__*/ React.createElement("div", {
+            className: "form-success"
+        }, /*#__PURE__*/ React.createElement(Icon, {
+            name: "check",
+            size: 18
+        }), /*#__PURE__*/ React.createElement("div", null, b.successMessage)), /*#__PURE__*/ React.createElement("form", {
+            onSubmit: (e)=>{
+                e.preventDefault();
+                setDone(true);
+            },
             style: {
                 display: 'flex',
-                justifyContent: 'flex-end',
-                marginTop: 'var(--sp-4)'
+                flexDirection: 'column',
+                gap: 'var(--sp-4)',
+                marginTop: 'var(--sp-2)'
             }
-        }, /*#__PURE__*/ React.createElement("a", {
-            href: "https://www.mtbuller.com.au/winter/weather/web-cams",
-            target: "_blank",
-            rel: "noopener noreferrer",
-            className: "btn btn-ghost btn-sm"
-        }, "More cams on mtbuller.com.au ", /*#__PURE__*/ React.createElement(Icon, {
-            name: "external",
-            size: 13
-        })))))), /*#__PURE__*/ React.createElement("section", {
-            className: "section"
         }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide",
+            className: "field"
+        }, /*#__PURE__*/ React.createElement("label", {
+            htmlFor: "lg-email"
+        }, "Email address"), /*#__PURE__*/ React.createElement("input", {
+            id: "lg-email",
+            className: "input",
+            type: "email",
+            required: true
+        })), /*#__PURE__*/ React.createElement("div", {
+            className: "field"
+        }, /*#__PURE__*/ React.createElement("label", {
+            htmlFor: "lg-pass"
+        }, "Password"), /*#__PURE__*/ React.createElement("input", {
+            id: "lg-pass",
+            className: "input",
+            type: "password",
+            required: true
+        })), /*#__PURE__*/ React.createElement("div", {
+            className: "row-between"
+        }, /*#__PURE__*/ React.createElement("label", {
+            className: "checkbox"
+        }, /*#__PURE__*/ React.createElement("input", {
+            type: "checkbox"
+        }), " Keep me signed in"), /*#__PURE__*/ React.createElement("a", {
+            href: "#"
+        }, "Forgot password?")), /*#__PURE__*/ React.createElement("button", {
+            type: "submit",
+            className: "btn btn-cta btn-lg",
             style: {
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 'var(--sp-12)'
+                marginTop: 'var(--sp-2)'
             }
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h2", null, "Contact numbers"), /*#__PURE__*/ React.createElement("p", {
-            className: "muted",
+        }, /*#__PURE__*/ React.createElement(Icon, {
+            name: "lock",
+            size: 16
+        }), " ", b.submitLabel, " ", /*#__PURE__*/ React.createElement("span", {
+            className: "arrow"
+        }, "→"))), b.joinLink && /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement("hr", {
+            className: "divider",
             style: {
-                maxWidth: '40ch',
-                marginBottom: 'var(--sp-6)'
+                margin: 'var(--sp-8) 0'
             }
-        }, "The list members usually want when something needs sorting."), /*#__PURE__*/ React.createElement("div", {
-            className: "contact-list"
-        }, contacts.map(([n, v])=>/*#__PURE__*/ React.createElement("div", {
-                key: n,
-                className: "contact-item"
-            }, /*#__PURE__*/ React.createElement("span", {
-                dangerouslySetInnerHTML: {
-                    __html: n
-                }
-            }), /*#__PURE__*/ React.createElement("span", {
-                className: "val"
-            }, v)))))), /*#__PURE__*/ React.createElement(R, {
-            d: 1
-        }, /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h2", null, "Useful links"), /*#__PURE__*/ React.createElement("p", {
-            className: "muted",
+        }), /*#__PURE__*/ React.createElement("p", {
+            className: "small"
+        }, b.joinPrompt, " ", /*#__PURE__*/ React.createElement("a", {
+            href: b.joinLink.href,
             style: {
-                maxWidth: '40ch',
-                marginBottom: 'var(--sp-6)'
+                color: 'var(--brand-deep)',
+                borderBottom: '1px solid currentColor'
             }
-        }, "Resort information, bookings and reports."), /*#__PURE__*/ React.createElement("div", {
-            className: "link-list"
-        }, links.map((l)=>/*#__PURE__*/ React.createElement("a", {
-                key: l.label,
-                href: l.url,
-                target: "_blank",
-                rel: "noopener noreferrer"
-            }, /*#__PURE__*/ React.createElement("span", {
-                dangerouslySetInnerHTML: {
-                    __html: l.label
-                }
-            }), /*#__PURE__*/ React.createElement(Icon, {
-                name: "arrow-up-right",
-                size: 16
-            })))))))), /*#__PURE__*/ React.createElement("section", {
-            className: "section"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide"
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
-            className: "section-head"
-        }, /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow"
-        }, "On the mountain this season"), /*#__PURE__*/ React.createElement("h2", {
-            style: {
-                marginTop: 14
-            }
-        }, "Events to plan around"))), /*#__PURE__*/ React.createElement("div", {
-            className: "feat-grid"
-        }, [
-            {
-                d: '14 Jun',
-                t: 'Opening Weekend',
-                s: "King of the Mountain race plus fireworks Saturday night."
-            },
-            {
-                d: '12 Jul',
-                t: "Buller Mardi Gras",
-                s: "Costume parade down Bourke Street; lodge dinner pre-game."
-            },
-            {
-                d: '23 Aug',
-                t: "Telemark Festival",
-                s: "Free-heel classes, demo skis, end-of-day at Kooroora."
-            }
-        ].map((e, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: e.t,
-                d: i
-            }, /*#__PURE__*/ React.createElement("div", {
-                className: "feat"
-            }, /*#__PURE__*/ React.createElement("span", {
-                className: "chip",
-                style: {
-                    marginBottom: 'var(--sp-3)'
-                }
-            }, e.d), /*#__PURE__*/ React.createElement("h3", null, e.t), /*#__PURE__*/ React.createElement("p", null, e.s))))))), /*#__PURE__*/ React.createElement(MemberBand, null), /*#__PURE__*/ React.createElement(Footer, null));
+        }, b.joinLink.label, " →")))))));
     }
-    /* ── NEWS PAGE ───────────────────────────────────────────── */ const ALL_POSTS_QUERY = `*[_type=="post"]|order(publishedAt desc){_id,title,"slug":slug.current,category,publishedAt,readingTimeMinutes,excerpt,mainImage{alt,asset}}`;
-    function NewsPage() {
-        const [filter, setFilter] = useState('All');
-        const [posts, loading] = useSanityQuery(ALL_POSTS_QUERY, {}, []);
-        const list = posts || [];
-        const featured = list[0];
-        const rest = list.slice(1);
-        const tags = [
-            'All',
-            ...new Set(list.map((p)=>p.category))
-        ];
-        const visible = rest.filter((p)=>filter === 'All' || p.category === filter);
-        return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
+    /* ── block registry ──────────────────────────────────────── */ const BLOCKS = {
+        heroBlock: HeroBlock,
+        conditionsStripBlock: ConditionsStripBlock,
+        richTextBlock: RichTextBlock,
+        featureGridBlock: FeatureGridBlock,
+        quoteBlock: QuoteBlock,
+        ctaBandBlock: CtaBandBlock,
+        noticeBlock: NoticeBlock,
+        forecastBlock: ForecastBlock,
+        reviewsBlock: ReviewsBlock,
+        infoSectionsBlock: InfoSectionsBlock,
+        stepsBlock: StepsBlock,
+        youtubeBlock: YoutubeBlock,
+        instagramBlock: InstagramBlock,
+        iframeBlock: IframeBlock,
+        serviceLinkBlock: ServiceLinkBlock,
+        newsListBlock: NewsListBlock,
+        galleryGridBlock: GalleryGridBlock,
+        gearGridBlock: GearGridBlock,
+        enquiryFormBlock: EnquiryFormBlock,
+        loginFormBlock: LoginFormBlock
+    };
+    /** Blocks that sit inside a shared two-column section rather than owning a section. */ const PAIRED = new Set([
+        'contactListBlock',
+        'linkListBlock'
+    ]);
+    const DIRECTIONS_LEFT = new Set([
+        'stepsBlock'
+    ]);
+    const DIRECTIONS_RIGHT = new Set([
+        'linkCardsBlock',
+        'addressBlock'
+    ]);
+    function Block({ b }) {
+        const C = BLOCKS[b._type];
+        if (!C) return null;
+        return /*#__PURE__*/ React.createElement(C, {
+            b: b
+        });
+    }
+    /**
+ * Renders a page's blocks, grouping the ones that share a row:
+ * contactList + linkList sit side by side, and the directions page
+ * puts steps on the left with link cards + address on the right.
+ */ function Blocks({ content }) {
+        const out = [];
+        const items = content || [];
+        for(let i = 0; i < items.length; i++){
+            const b = items[i];
+            if (PAIRED.has(b._type)) {
+                const pair = [
+                    b
+                ];
+                while(i + 1 < items.length && PAIRED.has(items[i + 1]._type)){
+                    pair.push(items[++i]);
+                }
+                out.push(/*#__PURE__*/ React.createElement("section", {
+                    key: b._key,
+                    className: "section section-tint"
+                }, /*#__PURE__*/ React.createElement("div", {
+                    className: "container-wide",
+                    style: {
+                        display: 'grid',
+                        gridTemplateColumns: pair.length > 1 ? '1fr 1fr' : '1fr',
+                        gap: 'var(--sp-12)'
+                    }
+                }, pair.map((p)=>p._type === 'contactListBlock' ? /*#__PURE__*/ React.createElement(ContactListBlock, {
+                        key: p._key,
+                        b: p
+                    }) : /*#__PURE__*/ React.createElement(LinkListBlock, {
+                        key: p._key,
+                        b: p
+                    })))));
+                continue;
+            }
+            if (DIRECTIONS_LEFT.has(b._type) && i + 1 < items.length && DIRECTIONS_RIGHT.has(items[i + 1]._type)) {
+                const left = b;
+                const right = [];
+                while(i + 1 < items.length && DIRECTIONS_RIGHT.has(items[i + 1]._type))right.push(items[++i]);
+                out.push(/*#__PURE__*/ React.createElement("section", {
+                    key: left._key,
+                    className: "section"
+                }, /*#__PURE__*/ React.createElement("div", {
+                    className: "container-wide directions-grid",
+                    style: {
+                        marginTop: 0
+                    }
+                }, /*#__PURE__*/ React.createElement(StepsBlock, {
+                    b: left
+                }), /*#__PURE__*/ React.createElement("div", null, right.map((r)=>r._type === 'linkCardsBlock' ? /*#__PURE__*/ React.createElement(LinkCardsBlock, {
+                        key: r._key,
+                        b: r
+                    }) : /*#__PURE__*/ React.createElement(AddressBlock, {
+                        key: r._key,
+                        b: r
+                    }))))));
+                continue;
+            }
+            if (b._type === 'mapBlock') {
+                out.push(/*#__PURE__*/ React.createElement("section", {
+                    key: b._key,
+                    className: "section",
+                    style: {
+                        paddingBottom: 0
+                    }
+                }, /*#__PURE__*/ React.createElement("div", {
+                    className: "container-wide"
+                }, /*#__PURE__*/ React.createElement(MapBlock, {
+                    b: b
+                }))));
+                continue;
+            }
+            if (b._type === 'linkCardsBlock') {
+                out.push(/*#__PURE__*/ React.createElement("section", {
+                    key: b._key,
+                    className: "section"
+                }, /*#__PURE__*/ React.createElement("div", {
+                    className: "container-wide"
+                }, /*#__PURE__*/ React.createElement(LinkCardsBlock, {
+                    b: b
+                }))));
+                continue;
+            }
+            if (b._type === 'addressBlock') {
+                out.push(/*#__PURE__*/ React.createElement("section", {
+                    key: b._key,
+                    className: "section"
+                }, /*#__PURE__*/ React.createElement("div", {
+                    className: "container-wide"
+                }, /*#__PURE__*/ React.createElement(AddressBlock, {
+                    b: b
+                }))));
+                continue;
+            }
+            out.push(/*#__PURE__*/ React.createElement(Block, {
+                key: b._key,
+                b: b
+            }));
+        }
+        return out;
+    }
+    /* ── PageView ────────────────────────────────────────────── */ function PageHeaderBanner({ page }) {
+        const h = page.header;
+        if (!h) return null;
+        const bg = sanityImageUrl(h.backgroundImage, {
+            w: 2000
+        });
+        return /*#__PURE__*/ React.createElement("section", {
             className: "page-header"
         }, /*#__PURE__*/ React.createElement("div", {
             className: "page-header-bg"
-        }, /*#__PURE__*/ React.createElement(Pic, {
-            src: "assets/photo-resort-crowd.jpg",
-            alt: ""
+        }, bg && /*#__PURE__*/ React.createElement("img", {
+            src: bg,
+            alt: "",
+            fetchPriority: "high"
         }), /*#__PURE__*/ React.createElement("div", {
             className: "page-header-overlay"
         })), /*#__PURE__*/ React.createElement("div", {
@@ -1891,17 +2327,17 @@
             className: "crumbs"
         }, /*#__PURE__*/ React.createElement("a", {
             href: "index.html"
-        }, "Home"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("span", null, "News")), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
+        }, "Home"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("span", null, page.breadcrumb || page.title)), /*#__PURE__*/ React.createElement(R, null, h.eyebrow && /*#__PURE__*/ React.createElement("span", {
             className: "eyebrow",
             style: {
                 color: 'var(--brand-ice)'
             }
-        }, "News, notices & used gear"), /*#__PURE__*/ React.createElement("h1", {
+        }, h.eyebrow), /*#__PURE__*/ React.createElement("h1", {
             style: {
                 marginTop: 14,
                 color: '#fff'
             }
-        }, "From the lodge."), /*#__PURE__*/ React.createElement("p", {
+        }, h.heading), h.lead && /*#__PURE__*/ React.createElement("p", {
             style: {
                 fontFamily: 'var(--font-editorial)',
                 fontStyle: 'italic',
@@ -1910,109 +2346,99 @@
                 marginTop: 'var(--sp-5)',
                 maxWidth: '56ch'
             }
-        }, "Snow reports, season notices, working bee dates, and the occasional pair of skis going to a new home.")))), /*#__PURE__*/ React.createElement("section", {
-            className: "section"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide"
-        }, loading ? /*#__PURE__*/ React.createElement("p", {
-            className: "muted"
-        }, "Loading news…") : !featured ? /*#__PURE__*/ React.createElement("p", {
-            className: "muted"
-        }, "No news posted yet — check back soon.") : /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("article", {
-            className: "news-featured",
-            onClick: ()=>onNav('article', featured.slug),
-            style: {
-                cursor: 'pointer'
+        }, h.lead)), (h.facts || []).length > 0 && /*#__PURE__*/ React.createElement("div", {
+            className: "hdr-meta"
+        }, h.facts.map((f)=>/*#__PURE__*/ React.createElement("div", {
+                key: f._key
+            }, /*#__PURE__*/ React.createElement("b", null, f.value), f.detail)))));
+    }
+    function PageView({ slug, site }) {
+        const [page, loading] = useSanityQuery(PAGE_QUERY, {
+            slug
+        }, [
+            slug
+        ]);
+        useEffect(()=>{
+            if (!page) return;
+            const seo = page.seo || {};
+            if (seo.metaTitle || page.title) document.title = seo.metaTitle || `${page.title} — Mitre Ski Club`;
+            if (seo.metaDescription) {
+                let m = document.querySelector('meta[name="description"]');
+                if (!m) {
+                    m = document.createElement('meta');
+                    m.name = 'description';
+                    document.head.appendChild(m);
+                }
+                m.content = seo.metaDescription;
             }
-        }, /*#__PURE__*/ React.createElement(Photo, {
-            src: sanityImageUrl(featured.mainImage, {
-                w: 960
-            }),
-            label: featured.mainImage && featured.mainImage.alt
-        }), /*#__PURE__*/ React.createElement("div", {
-            className: "news-featured-body"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "row",
+        }, [
+            page
+        ]);
+        if (loading) return /*#__PURE__*/ React.createElement("main", {
             style: {
-                marginBottom: 12
+                minHeight: '70vh',
+                display: 'grid',
+                placeItems: 'center'
             }
-        }, /*#__PURE__*/ React.createElement("span", {
-            className: "chip"
-        }, featured.category), /*#__PURE__*/ React.createElement("span", {
+        }, /*#__PURE__*/ React.createElement("p", {
+            className: "muted"
+        }, "Loading…"));
+        if (!page) return /*#__PURE__*/ React.createElement("main", {
+            style: {
+                minHeight: '70vh',
+                display: 'grid',
+                placeItems: 'center',
+                textAlign: 'center'
+            }
+        }, /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h1", null, "Page not found"), /*#__PURE__*/ React.createElement("p", {
             className: "muted",
             style: {
-                fontSize: 13
+                marginTop: 'var(--sp-4)'
             }
-        }, formatDate(featured.publishedAt), " · ", readingTimeLabel(featured.readingTimeMinutes), " read")), /*#__PURE__*/ React.createElement("h2", null, featured.title), /*#__PURE__*/ React.createElement("p", {
-            className: "lead"
-        }, featured.excerpt), /*#__PURE__*/ React.createElement("div", {
+        }, "This page hasn't been created in the CMS yet."), /*#__PURE__*/ React.createElement("a", {
+            className: "btn btn-primary btn-sm",
+            href: "index.html",
             style: {
                 marginTop: 'var(--sp-5)'
             }
-        }, /*#__PURE__*/ React.createElement("span", {
-            className: "btn btn-link"
-        }, "Read the full report ", /*#__PURE__*/ React.createElement(Icon, {
-            name: "arrow",
-            size: 14
-        })))))), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
-            style: {
-                display: 'flex',
-                gap: 8,
-                flexWrap: 'wrap',
-                marginBottom: 'var(--sp-6)'
-            }
-        }, tags.map((t)=>/*#__PURE__*/ React.createElement("button", {
-                key: t,
-                className: 'btn btn-sm ' + (filter === t ? 'btn-primary' : 'btn-ghost'),
-                onClick: ()=>setFilter(t)
-            }, t)))), /*#__PURE__*/ React.createElement("div", {
-            className: "news-grid"
-        }, visible.map((p, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: p._id,
-                d: i % 3
-            }, /*#__PURE__*/ React.createElement("article", {
-                className: "news-card",
-                onClick: ()=>onNav('article', p.slug),
-                style: {
-                    cursor: 'pointer'
-                }
-            }, /*#__PURE__*/ React.createElement(Photo, {
-                src: sanityImageUrl(p.mainImage, {
-                    w: 640
-                }),
-                label: p.mainImage && p.mainImage.alt,
-                ratio: "16/10"
-            }), /*#__PURE__*/ React.createElement("div", {
-                className: "news-card-body"
-            }, /*#__PURE__*/ React.createElement("div", {
-                className: "meta"
-            }, /*#__PURE__*/ React.createElement("span", {
-                className: "chip",
-                style: {
-                    marginRight: 8
-                }
-            }, p.category), formatDate(p.publishedAt)), /*#__PURE__*/ React.createElement("h3", null, p.title), /*#__PURE__*/ React.createElement("p", null, p.excerpt), /*#__PURE__*/ React.createElement("span", {
-                className: "more"
-            }, "Read ", /*#__PURE__*/ React.createElement(Icon, {
-                name: "arrow",
-                size: 14
-            })))))))))), /*#__PURE__*/ React.createElement(MemberBand, null), /*#__PURE__*/ React.createElement(Footer, null));
+        }, "Back to home")));
+        // The login page owns the whole viewport — no nav, no footer.
+        const loginBlock = (page.content || []).find((b)=>b._type === 'loginFormBlock');
+        if (loginBlock) return /*#__PURE__*/ React.createElement(LoginFormBlock, {
+            b: loginBlock
+        });
+        return /*#__PURE__*/ React.createElement("main", null, page.headerStyle === 'banner' && /*#__PURE__*/ React.createElement(PageHeaderBanner, {
+            page: page
+        }), /*#__PURE__*/ React.createElement(Blocks, {
+            content: page.content
+        }), page.showMemberBand !== false && /*#__PURE__*/ React.createElement(MemberBand, {
+            band: site && site.band
+        }), /*#__PURE__*/ React.createElement(Footer, {
+            nav: site && site.nav,
+            settings: site && site.settings
+        }));
     }
     /* ── ARTICLE ─────────────────────────────────────────────── */ const POST_BY_SLUG_QUERY = `*[_type=="post" && slug.current==$slug][0]{_id,title,category,publishedAt,readingTimeMinutes,mainImage{alt,asset},body}`;
-    function ArticlePage() {
+    function ArticlePage({ site }) {
         const [post, loading] = useSanityQuery(POST_BY_SLUG_QUERY, {
             slug: ART_ID || ''
         }, [
             ART_ID
         ]);
+        useEffect(()=>{
+            if (post) document.title = `${post.title} — Mitre Ski Club`;
+        }, [
+            post
+        ]);
+        const bg = post && post.mainImage ? sanityImageUrl(post.mainImage, {
+            w: 1600
+        }) : null;
         return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
             className: "page-header"
         }, /*#__PURE__*/ React.createElement("div", {
             className: "page-header-bg"
-        }, /*#__PURE__*/ React.createElement(Pic, {
-            src: post && post.mainImage ? sanityImageUrl(post.mainImage, {
-                w: 1600
-            }) : 'assets/photo-mt-buller-peak.jpg',
+        }, bg && /*#__PURE__*/ React.createElement("img", {
+            src: bg,
             alt: ""
         }), /*#__PURE__*/ React.createElement("div", {
             className: "page-header-overlay"
@@ -2078,844 +2504,10 @@
         }, "← Back to news"), /*#__PURE__*/ React.createElement("a", {
             className: "btn btn-primary btn-sm",
             href: "login.html"
-        }, "Members' notices →"))))), /*#__PURE__*/ React.createElement(Footer, null));
-    }
-    /* ── ENQUIRIES ───────────────────────────────────────────── */ function EnquiriesPage() {
-        const [done, setDone] = useState(false);
-        const [form, setForm] = useState({
-            name: '',
-            email: '',
-            phone: '',
-            interest: 'membership',
-            message: ''
-        });
-        return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
-            className: "page-header"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-bg"
-        }, /*#__PURE__*/ React.createElement(Pic, {
-            src: "assets/photo-resort-crowd.jpg",
-            alt: ""
-        }), /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-overlay"
-        })), /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide page-header-inner"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "crumbs"
-        }, /*#__PURE__*/ React.createElement("a", {
-            href: "index.html"
-        }, "Home"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("span", null, "Enquiries")), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow",
-            style: {
-                color: 'var(--brand-ice)'
-            }
-        }, "Get in touch"), /*#__PURE__*/ React.createElement("h1", {
-            style: {
-                marginTop: 14,
-                color: '#fff'
-            }
-        }, "Say hello."), /*#__PURE__*/ React.createElement("p", {
-            style: {
-                fontFamily: 'var(--font-editorial)',
-                fontStyle: 'italic',
-                fontSize: 'var(--fs-24)',
-                color: 'rgba(255,255,255,.75)',
-                marginTop: 'var(--sp-5)',
-                maxWidth: '56ch'
-            }
-        }, "Whether you're thinking about joining, after a group booking, or just have a question — drop us a line.")))), /*#__PURE__*/ React.createElement("section", {
-            className: "section"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide enquire-grid"
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h2", {
-            style: {
-                fontSize: 'var(--fs-32)'
-            }
-        }, "How membership works"), /*#__PURE__*/ React.createElement("p", {
-            className: "muted"
-        }, "Mitre is a small, member-run club. New memberships open when existing members move on."), /*#__PURE__*/ React.createElement("ol", {
-            className: "muted",
-            style: {
-                paddingLeft: '1.2em',
-                lineHeight: 1.8,
-                marginTop: 'var(--sp-5)'
-            }
-        }, /*#__PURE__*/ React.createElement("li", null, /*#__PURE__*/ React.createElement("b", {
-            style: {
-                color: 'var(--ink)'
-            }
-        }, "Get in touch."), " Use the form, or email the secretary."), /*#__PURE__*/ React.createElement("li", null, /*#__PURE__*/ React.createElement("b", {
-            style: {
-                color: 'var(--ink)'
-            }
-        }, "Visit the lodge."), " Stay a weekend or two as a member's guest."), /*#__PURE__*/ React.createElement("li", null, /*#__PURE__*/ React.createElement("b", {
-            style: {
-                color: 'var(--ink)'
-            }
-        }, "Submit a nomination."), " A current member proposes; another seconds."), /*#__PURE__*/ React.createElement("li", null, /*#__PURE__*/ React.createElement("b", {
-            style: {
-                color: 'var(--ink)'
-            }
-        }, "Committee review."), " Decisions are made monthly during winter.")), /*#__PURE__*/ React.createElement("hr", {
-            className: "divider"
-        }), /*#__PURE__*/ React.createElement("h3", null, "Direct contacts"), /*#__PURE__*/ React.createElement("div", {
-            className: "contact-list",
-            style: {
-                marginTop: 'var(--sp-4)'
-            }
-        }, [
-            [
-                'Secretary',
-                'secretary@mitreskiclub.com'
-            ],
-            [
-                'Bookings',
-                'bookings@mitreskiclub.com'
-            ],
-            [
-                'President',
-                'president@mitreskiclub.com'
-            ],
-            [
-                'Treasurer',
-                'treasurer@mitreskiclub.com'
-            ]
-        ].map(([n, v])=>/*#__PURE__*/ React.createElement("div", {
-                key: n,
-                className: "contact-item"
-            }, /*#__PURE__*/ React.createElement("span", null, n), /*#__PURE__*/ React.createElement("span", {
-                className: "val"
-            }, v)))))), /*#__PURE__*/ React.createElement(R, {
-            d: 1
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "form-card"
-        }, done ? /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("div", {
-            className: "form-success"
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "check",
-            size: 20
-        }), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("b", null, "Thanks — your message is on its way."), /*#__PURE__*/ React.createElement("br", null), "We'll be in touch within a week.")), /*#__PURE__*/ React.createElement("button", {
-            className: "btn btn-ghost",
-            style: {
-                marginTop: 'var(--sp-6)'
-            },
-            onClick: ()=>{
-                setDone(false);
-                setForm({
-                    name: '',
-                    email: '',
-                    phone: '',
-                    interest: 'membership',
-                    message: ''
-                });
-            }
-        }, "Send another")) : /*#__PURE__*/ React.createElement("form", {
-            onSubmit: (e)=>{
-                e.preventDefault();
-                setDone(true);
-            },
-            style: {
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--sp-4)'
-            }
-        }, /*#__PURE__*/ React.createElement("h3", {
-            style: {
-                margin: 0
-            }
-        }, "Send us a note"), /*#__PURE__*/ React.createElement("p", {
-            className: "muted",
-            style: {
-                margin: 0,
-                fontSize: 14
-            }
-        }, "* required"), /*#__PURE__*/ React.createElement("div", {
-            className: "form-row-2"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "field"
-        }, /*#__PURE__*/ React.createElement("label", null, "First name *"), /*#__PURE__*/ React.createElement("input", {
-            className: "input",
-            required: true,
-            value: form.name,
-            onChange: (e)=>setForm({
-                    ...form,
-                    name: e.target.value
-                })
-        })), /*#__PURE__*/ React.createElement("div", {
-            className: "field"
-        }, /*#__PURE__*/ React.createElement("label", null, "Last name *"), /*#__PURE__*/ React.createElement("input", {
-            className: "input",
-            required: true
-        }))), /*#__PURE__*/ React.createElement("div", {
-            className: "form-row-2"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "field"
-        }, /*#__PURE__*/ React.createElement("label", null, "Email *"), /*#__PURE__*/ React.createElement("input", {
-            className: "input",
-            type: "email",
-            required: true,
-            value: form.email,
-            onChange: (e)=>setForm({
-                    ...form,
-                    email: e.target.value
-                })
-        })), /*#__PURE__*/ React.createElement("div", {
-            className: "field"
-        }, /*#__PURE__*/ React.createElement("label", null, "Phone"), /*#__PURE__*/ React.createElement("input", {
-            className: "input",
-            type: "tel",
-            value: form.phone,
-            onChange: (e)=>setForm({
-                    ...form,
-                    phone: e.target.value
-                })
-        }))), /*#__PURE__*/ React.createElement("div", {
-            className: "field"
-        }, /*#__PURE__*/ React.createElement("label", null, "What's this about?"), /*#__PURE__*/ React.createElement("select", {
-            className: "select",
-            value: form.interest,
-            onChange: (e)=>setForm({
-                    ...form,
-                    interest: e.target.value
-                })
-        }, /*#__PURE__*/ React.createElement("option", {
-            value: "membership"
-        }, "Becoming a member"), /*#__PURE__*/ React.createElement("option", {
-            value: "guest"
-        }, "Staying as a member's guest"), /*#__PURE__*/ React.createElement("option", {
-            value: "group"
-        }, "Group booking (off-season)"), /*#__PURE__*/ React.createElement("option", {
-            value: "other"
-        }, "Something else"))), /*#__PURE__*/ React.createElement("div", {
-            className: "field"
-        }, /*#__PURE__*/ React.createElement("label", null, "Your message *"), /*#__PURE__*/ React.createElement("textarea", {
-            className: "textarea",
-            required: true,
-            placeholder: "A short note about what you're after, your skiing/snowboarding history, or who put you onto Mitre…",
-            value: form.message,
-            onChange: (e)=>setForm({
-                    ...form,
-                    message: e.target.value
-                })
-        })), /*#__PURE__*/ React.createElement("label", {
-            className: "checkbox",
-            style: {
-                fontSize: 14
-            }
-        }, /*#__PURE__*/ React.createElement("input", {
-            type: "checkbox",
-            required: true
-        }), " I'm happy for the committee to contact me."), /*#__PURE__*/ React.createElement("button", {
-            type: "submit",
-            className: "btn btn-cta btn-lg",
-            style: {
-                alignSelf: 'flex-start',
-                marginTop: 'var(--sp-2)'
-            }
-        }, "Send enquiry ", /*#__PURE__*/ React.createElement("span", {
-            className: "arrow"
-        }, "→"))))))), /*#__PURE__*/ React.createElement(Footer, null));
-    }
-    /* ── LOGIN ───────────────────────────────────────────────── */ function LoginPage() {
-        const [done, setDone] = useState(false);
-        return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("div", {
-            className: "login-shell"
-        }, /*#__PURE__*/ React.createElement("aside", {
-            className: "login-art"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "login-art-media"
-        }, /*#__PURE__*/ React.createElement(Pic, {
-            src: "assets/photo-resort-crowd.jpg",
-            alt: "Mt Buller resort",
-            style: {
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                position: 'absolute',
-                inset: 0
-            },
-            priority: true
-        }), /*#__PURE__*/ React.createElement("div", {
-            className: "login-art-overlay"
-        })), /*#__PURE__*/ React.createElement("div", {
-            style: {
-                position: 'relative',
-                zIndex: 1
-            }
-        }, /*#__PURE__*/ React.createElement("div", {
-            style: {
-                background: 'rgba(255,255,255,.92)',
-                borderRadius: 10,
-                padding: '7px 12px',
-                display: 'inline-block',
-                boxShadow: '0 4px 20px rgba(0,0,0,.3)'
-            }
-        }, /*#__PURE__*/ React.createElement(Logo, {
-            height: 40
-        }))), /*#__PURE__*/ React.createElement("div", {
-            className: "login-art-middle",
-            style: {
-                position: 'relative',
-                zIndex: 1
-            }
-        }, /*#__PURE__*/ React.createElement("p", {
-            className: "editorial login-art-welcome"
-        }, "Welcome back", /*#__PURE__*/ React.createElement("br", null), /*#__PURE__*/ React.createElement("em", null, "to the mountain.")), /*#__PURE__*/ React.createElement("p", {
-            style: {
-                color: 'var(--snow-300)',
-                marginTop: 'var(--sp-5)',
-                maxWidth: '32ch',
-                fontSize: 16,
-                lineHeight: 1.6
-            }
-        }, "Bookings, season dates, members' notices and used-gear listings — all yours.")), /*#__PURE__*/ React.createElement("div", {
-            style: {
-                position: 'relative',
-                zIndex: 1
-            }
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "login-art-quote-block"
-        }, /*#__PURE__*/ React.createElement("p", {
-            className: "login-art-quote"
-        }, '"Last lodge on the Avenue. Ski straight in off Standard."'), /*#__PURE__*/ React.createElement("span", {
-            style: {
-                color: 'var(--snow-500)',
-                marginTop: 10,
-                fontSize: 12,
-                display: 'block',
-                letterSpacing: '.08em',
-                textTransform: 'uppercase'
-            }
-        }, "— Mitre Ski Club, est. 1962")))), /*#__PURE__*/ React.createElement("section", {
-            className: "login-form-wrap"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "login-form"
-        }, /*#__PURE__*/ React.createElement("a", {
-            className: "login-form-back",
-            href: "index.html"
-        }, "← Back to mitreskiclub.com"), /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow"
-        }, "Members"), /*#__PURE__*/ React.createElement("h1", {
-            style: {
-                marginTop: 12
-            }
-        }, "Log in to bookings."), /*#__PURE__*/ React.createElement("p", {
-            className: "small"
-        }, "Use the email you registered with the club. ", /*#__PURE__*/ React.createElement("a", {
-            href: "#",
-            style: {
-                color: 'var(--brand-deep)',
-                borderBottom: '1px solid currentColor'
-            }
-        }, "Forgotten your password?")), done && /*#__PURE__*/ React.createElement("div", {
-            className: "form-success"
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "check",
-            size: 18
-        }), /*#__PURE__*/ React.createElement("div", null, "Sending you to bookings.mitreskiclub.com…")), /*#__PURE__*/ React.createElement("form", {
-            onSubmit: (e)=>{
-                e.preventDefault();
-                setDone(true);
-            },
-            style: {
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--sp-4)',
-                marginTop: 'var(--sp-2)'
-            }
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "field"
-        }, /*#__PURE__*/ React.createElement("label", null, "Email address"), /*#__PURE__*/ React.createElement("input", {
-            className: "input",
-            type: "email",
-            required: true
-        })), /*#__PURE__*/ React.createElement("div", {
-            className: "field"
-        }, /*#__PURE__*/ React.createElement("label", null, "Password"), /*#__PURE__*/ React.createElement("input", {
-            className: "input",
-            type: "password",
-            required: true
-        })), /*#__PURE__*/ React.createElement("div", {
-            className: "row-between"
-        }, /*#__PURE__*/ React.createElement("label", {
-            className: "checkbox"
-        }, /*#__PURE__*/ React.createElement("input", {
-            type: "checkbox"
-        }), " Keep me signed in"), /*#__PURE__*/ React.createElement("a", {
-            href: "#"
-        }, "Forgot password?")), /*#__PURE__*/ React.createElement("button", {
-            type: "submit",
-            className: "btn btn-cta btn-lg",
-            style: {
-                marginTop: 'var(--sp-2)'
-            }
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "lock",
-            size: 16
-        }), " Log in ", /*#__PURE__*/ React.createElement("span", {
-            className: "arrow"
-        }, "→"))), /*#__PURE__*/ React.createElement("hr", {
-            className: "divider",
-            style: {
-                margin: 'var(--sp-8) 0'
-            }
-        }), /*#__PURE__*/ React.createElement("p", {
-            className: "small"
-        }, "Not a member? ", /*#__PURE__*/ React.createElement("a", {
-            href: "enquiries.html",
-            style: {
-                color: 'var(--brand-deep)',
-                borderBottom: '1px solid currentColor'
-            }
-        }, "Enquire about joining →"))))));
-    }
-    /* ── GALLERY ─────────────────────────────────────────────── */ const GALLERY_CATS = [
-        [
-            'all',
-            'All photos'
-        ],
-        [
-            'mountain',
-            'On the mountain'
-        ],
-        [
-            'lodge',
-            'Lodge life'
-        ],
-        [
-            'bee',
-            'Working bees'
-        ],
-        [
-            'summer',
-            'Off-season'
-        ]
-    ];
-    const GALLERY_QUERY = `*[_type=="galleryPhoto"]|order(_createdAt desc){_id,caption,context,category,image{alt,asset}}`;
-    function GalleryPage() {
-        const [cat, setCat] = useState('all');
-        const [items, loading] = useSanityQuery(GALLERY_QUERY, {}, []);
-        const visible = (items || []).filter((g)=>cat === 'all' || g.category === cat);
-        return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
-            className: "page-header"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-bg"
-        }, /*#__PURE__*/ React.createElement(Pic, {
-            src: "assets/photo-resort-crowd.jpg",
-            alt: ""
-        }), /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-overlay"
-        })), /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide page-header-inner"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "crumbs"
-        }, /*#__PURE__*/ React.createElement("a", {
-            href: "index.html"
-        }, "Home"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("span", null, "Gallery")), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow",
-            style: {
-                color: 'var(--brand-ice)'
-            }
-        }, "Members' gallery"), /*#__PURE__*/ React.createElement("h1", {
-            style: {
-                marginTop: 14,
-                color: '#fff'
-            }
-        }, "Sixty winters of moments."), /*#__PURE__*/ React.createElement("p", {
-            style: {
-                fontFamily: 'var(--font-editorial)',
-                fontStyle: 'italic',
-                fontSize: 'var(--fs-24)',
-                color: 'rgba(255,255,255,.75)',
-                marginTop: 'var(--sp-5)',
-                maxWidth: '56ch'
-            }
-        }, "Powder days, working bees, golden hours and the last ski of the season.")))), /*#__PURE__*/ React.createElement("section", {
-            className: "section"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "gallery-filters"
-        }, GALLERY_CATS.map(([id, lbl])=>/*#__PURE__*/ React.createElement("button", {
-                key: id,
-                className: 'btn btn-sm ' + (cat === id ? 'btn-primary' : 'btn-ghost'),
-                onClick: ()=>setCat(id)
-            }, lbl))), loading ? /*#__PURE__*/ React.createElement("p", {
-            className: "muted"
-        }, "Loading gallery…") : visible.length === 0 ? /*#__PURE__*/ React.createElement("p", {
-            className: "muted"
-        }, "No photos yet — check back soon.") : /*#__PURE__*/ React.createElement("div", {
-            className: "gallery-grid"
-        }, visible.map((g, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: g._id,
-                d: i % 3
-            }, /*#__PURE__*/ React.createElement("div", {
-                className: "gallery-item"
-            }, /*#__PURE__*/ React.createElement("img", {
-                src: sanityImageUrl(g.image, {
-                    w: 800
-                }),
-                alt: g.image && g.image.alt || g.caption,
-                loading: "lazy"
-            }), /*#__PURE__*/ React.createElement("div", {
-                className: "gallery-caption"
-            }, /*#__PURE__*/ React.createElement("span", null, g.caption), /*#__PURE__*/ React.createElement("small", null, g.context)))))), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
-            className: "gallery-insta-cta"
-        }, /*#__PURE__*/ React.createElement("div", {
-            style: {
-                fontSize: 32,
-                marginBottom: 'var(--sp-3)'
-            }
-        }, "📸"), /*#__PURE__*/ React.createElement("h3", null, "Follow us on Instagram"), /*#__PURE__*/ React.createElement("p", {
-            style: {
-                color: 'rgba(255,255,255,.8)',
-                margin: '0 auto var(--sp-6)',
-                maxWidth: '44ch'
-            }
-        }, "Members sharing the season in real time — powder alerts, working bee photos, and the occasional après ski."), /*#__PURE__*/ React.createElement("a", {
-            href: "https://www.instagram.com/mitreskiclub/",
-            target: "_blank",
-            rel: "noopener noreferrer",
-            className: "btn btn-sm",
-            style: {
-                background: 'rgba(255,255,255,.2)',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,.3)'
-            }
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "instagram",
-            size: 15
-        }), " @mitreskiclub"), /*#__PURE__*/ React.createElement("p", {
-            style: {
-                color: 'rgba(255,255,255,.5)',
-                marginTop: 'var(--sp-4)',
-                fontSize: 13
-            }
-        }, "Got photos from Mitre? Send them to ", /*#__PURE__*/ React.createElement("a", {
-            href: "mailto:secretary@mitreskiclub.com",
-            style: {
-                color: 'rgba(255,255,255,.7)'
-            }
-        }, "secretary@mitreskiclub.com"), " to be featured."))))), /*#__PURE__*/ React.createElement(Footer, null));
-    }
-    /* ── SHOP ────────────────────────────────────────────────── */ const GEAR_CATS = [
-        'All',
-        'Skis',
-        'Boots',
-        'Jacket',
-        'Helmet',
-        'Kids skis'
-    ];
-    const GEAR_QUERY = `*[_type=="gearListing"]|order(postedAt desc){_id,title,category,size,price,status,seller,postedAt,image{alt,asset},description}`;
-    function ShopPage() {
-        const [cat, setCat] = useState('All');
-        const [gear, loading] = useSanityQuery(GEAR_QUERY, {}, []);
-        const visible = (gear || []).filter((g)=>cat === 'All' || g.category === cat);
-        return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
-            className: "page-header"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-bg"
-        }, /*#__PURE__*/ React.createElement(Pic, {
-            src: "assets/photo-snowboarder-pov.jpg",
-            alt: ""
-        }), /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-overlay"
-        })), /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide page-header-inner"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "crumbs"
-        }, /*#__PURE__*/ React.createElement("a", {
-            href: "index.html"
-        }, "Home"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("span", null, "Used gear shop")), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow",
-            style: {
-                color: 'var(--brand-ice)'
-            }
-        }, "Members' classifieds"), /*#__PURE__*/ React.createElement("h1", {
-            style: {
-                marginTop: 14,
-                color: '#fff'
-            }
-        }, "Used ski gear."), /*#__PURE__*/ React.createElement("p", {
-            style: {
-                fontFamily: 'var(--font-editorial)',
-                fontStyle: 'italic',
-                fontSize: 'var(--fs-24)',
-                color: 'rgba(255,255,255,.75)',
-                marginTop: 'var(--sp-5)',
-                maxWidth: '56ch'
-            }
-        }, "Skis, boots, jackets and helmets from fellow members. Good gear, fair prices.")))), /*#__PURE__*/ React.createElement("section", {
-            className: "section"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide"
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
-            className: "shop-notice"
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "info",
-            size: 18,
-            stroke: 2
-        }), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("b", null, "Members-only listings."), " Contact the seller directly using the details in the member portal. To list your own gear, email ", /*#__PURE__*/ React.createElement("a", {
-            href: "mailto:secretary@mitreskiclub.com"
-        }, "secretary@mitreskiclub.com"), " with photos, price and description. All sales are between members — the club takes no commission."))), /*#__PURE__*/ React.createElement("div", {
-            className: "gear-filters"
-        }, GEAR_CATS.map((c)=>/*#__PURE__*/ React.createElement("button", {
-                key: c,
-                className: 'btn btn-sm ' + (cat === c ? 'btn-primary' : 'btn-ghost'),
-                onClick: ()=>setCat(c)
-            }, c))), loading ? /*#__PURE__*/ React.createElement("p", {
-            className: "muted"
-        }, "Loading listings…") : visible.length === 0 ? /*#__PURE__*/ React.createElement("p", {
-            className: "muted"
-        }, "No gear listed right now — check back soon.") : /*#__PURE__*/ React.createElement("div", {
-            className: "gear-grid"
-        }, visible.map((g, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: g._id,
-                d: i % 3
-            }, /*#__PURE__*/ React.createElement("div", {
-                className: "gear-card"
-            }, /*#__PURE__*/ React.createElement("div", {
-                className: "gear-img"
-            }, /*#__PURE__*/ React.createElement(Photo, {
-                src: sanityImageUrl(g.image, {
-                    w: 640
-                }),
-                ratio: "4/3",
-                label: g.category
-            }), /*#__PURE__*/ React.createElement("span", {
-                className: 'gear-badge ' + (g.status === 'sold' ? 'sold' : g.status === 'reserved' ? 'reserved' : '')
-            }, g.status === 'available' ? g.category : g.status)), /*#__PURE__*/ React.createElement("div", {
-                className: "gear-body"
-            }, /*#__PURE__*/ React.createElement("h3", null, g.title), /*#__PURE__*/ React.createElement("div", {
-                className: "gear-size"
-            }, g.size), /*#__PURE__*/ React.createElement("p", {
-                className: "gear-desc"
-            }, g.description), /*#__PURE__*/ React.createElement("div", {
-                className: "gear-seller"
-            }, /*#__PURE__*/ React.createElement(Icon, {
-                name: "users",
-                size: 13
-            }), g.seller, " · ", timeAgo(g.postedAt)), /*#__PURE__*/ React.createElement("div", {
-                className: "gear-price"
-            }, g.status === 'sold' ? /*#__PURE__*/ React.createElement("span", {
-                style: {
-                    color: 'var(--ink-soft)',
-                    fontSize: 'var(--fs-18)'
-                }
-            }, "Sold") : `$${g.price}`)), g.status !== 'sold' && /*#__PURE__*/ React.createElement("div", {
-                className: "gear-actions"
-            }, /*#__PURE__*/ React.createElement("a", {
-                className: "btn btn-primary btn-sm",
-                href: "login.html",
-                style: {
-                    flex: 1
-                }
-            }, /*#__PURE__*/ React.createElement(Icon, {
-                name: "lock",
-                size: 13
-            }), " Contact seller")))))))), /*#__PURE__*/ React.createElement(MemberBand, null), /*#__PURE__*/ React.createElement(Footer, null));
-    }
-    /* ── DIRECTIONS ──────────────────────────────────────────── */ function DirectionsPage() {
-        const [tab, setTab] = useState('car');
-        const carSteps = [
-            {
-                n: 1,
-                title: 'Leave Melbourne via the Hume Freeway',
-                body: "Head northeast on the Hume Freeway (M31). Take the Seymour exit and continue towards Mansfield on the Maroondah Highway."
-            },
-            {
-                n: 2,
-                title: 'Through Mansfield — chains available here',
-                body: "Mansfield is 190 km from Melbourne CBD (about 2.5 hrs). Hire or buy snow chains at any of the service stations or gear shops on the main street. Chains must be carried from the gate."
-            },
-            {
-                n: 3,
-                title: 'Pay resort entry at the Merrijig gate',
-                body: "The entry gate is at Merrijig, 9 km before the village. Staff will collect resort entry fees. Keep your receipt — you'll need it for parking."
-            },
-            {
-                n: 4,
-                title: 'Drive to the top — follow signs to The Avenue',
-                body: "Drive up the mountain road (about 16 km, allow 30–40 min in ski season). At the top, follow signs to The Avenue. Mitre is the last lodge — number 14."
-            },
-            {
-                n: 5,
-                title: 'Park in the designated guest parking area',
-                body: "There is allocated parking behind the lodge. The lodge number is 14 The Avenue. Ring the bell or use the code from your booking confirmation."
-            }
-        ];
-        const busSteps = [
-            {
-                n: 1,
-                title: 'Book the Mansfield–Mt Buller bus',
-                body: "The Mansfield–Mt Buller Snowball Express bus runs daily during ski season from the Mansfield Bus Terminal. Bookings via Mount Buller Resort Management: (03) 5777 6077."
-            },
-            {
-                n: 2,
-                title: 'Take the train to Seymour or Shepparton',
-                body: "V/Line trains run from Southern Cross Station to Seymour (1.5 hrs). From Seymour you can connect to the coach service to Mansfield."
-            },
-            {
-                n: 3,
-                title: 'Coach from Mansfield to Mt Buller',
-                body: "The resort bus drops passengers at the village plaza. From there, the oversnow taxi service (03) 5777 6070 runs to all lodge addresses. Tell the driver 14 The Avenue."
-            }
-        ];
-        const steps = tab === 'car' ? carSteps : busSteps;
-        const links = [
-            {
-                icon: 'external',
-                title: 'Mt Buller resort entry',
-                sub: 'Fees, permits & conditions',
-                url: 'https://www.mtbuller.com.au/winter/plan-your-trip/getting-here'
-            },
-            {
-                icon: 'external',
-                title: 'Oversnow taxi service',
-                sub: 'Book: (03) 5777 6070',
-                url: 'tel:0357776070'
-            },
-            {
-                icon: 'map-pin',
-                title: 'Google Maps',
-                sub: '14 The Avenue, Mt Buller VIC',
-                url: 'https://www.google.com/maps/place/Mitre+Ski+Club/data=!4m2!3m1!1s0x0:0xf93f066352e269fc?sa=X&ved=1t:2428&ictx=111'
-            },
-            {
-                icon: 'external',
-                title: 'VicRoads traffic info',
-                sub: 'Road conditions & alerts',
-                url: 'https://traffic.vicroads.vic.gov.au/'
-            },
-            {
-                icon: 'external',
-                title: 'Snow chains info',
-                sub: 'When & how to fit chains',
-                url: 'https://www.mtbuller.com.au/winter/plan-your-trip/getting-here#chains'
-            },
-            {
-                icon: 'external',
-                title: 'V/Line trains',
-                sub: 'Melbourne → Seymour / Shepparton',
-                url: 'https://www.vline.com.au/'
-            }
-        ];
-        return /*#__PURE__*/ React.createElement("main", null, /*#__PURE__*/ React.createElement("section", {
-            className: "page-header"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-bg"
-        }, /*#__PURE__*/ React.createElement(Pic, {
-            src: "assets/photo-mt-buller-peak.jpg",
-            alt: "Mt Buller"
-        }), /*#__PURE__*/ React.createElement("div", {
-            className: "page-header-overlay"
-        })), /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide page-header-inner"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "crumbs"
-        }, /*#__PURE__*/ React.createElement("a", {
-            href: "index.html"
-        }, "Home"), /*#__PURE__*/ React.createElement("span", null, "/"), /*#__PURE__*/ React.createElement("span", null, "Directions")), /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("span", {
-            className: "eyebrow",
-            style: {
-                color: 'var(--brand-ice)'
-            }
-        }, "Getting here"), /*#__PURE__*/ React.createElement("h1", {
-            style: {
-                marginTop: 14,
-                color: '#fff'
-            }
-        }, "Find us on the mountain."), /*#__PURE__*/ React.createElement("p", {
-            style: {
-                fontFamily: 'var(--font-editorial)',
-                fontStyle: 'italic',
-                fontSize: 'var(--fs-24)',
-                color: 'rgba(255,255,255,.75)',
-                marginTop: 'var(--sp-5)',
-                maxWidth: '56ch'
-            }
-        }, "14 The Avenue, Mt Buller VIC 3723. Last lodge on the road.")))), /*#__PURE__*/ React.createElement("section", {
-            className: "section"
-        }, /*#__PURE__*/ React.createElement("div", {
-            className: "container-wide"
-        }, /*#__PURE__*/ React.createElement(R, null, /*#__PURE__*/ React.createElement("div", {
-            className: "map-embed"
-        }, /*#__PURE__*/ React.createElement("iframe", {
-            src: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1561.2!2d146.4375!3d-37.1527!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0xf93f066352e269fc!2sMitre%20Ski%20Club!5e0!3m2!1sen!2sau!4v1",
-            allowFullScreen: "",
-            loading: "lazy",
-            referrerPolicy: "no-referrer-when-downgrade",
-            title: "Mitre Ski Club location"
-        }))), /*#__PURE__*/ React.createElement("div", {
-            className: "directions-grid"
-        }, /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h2", null, "Step-by-step directions"), /*#__PURE__*/ React.createElement("div", {
-            className: "transport-tabs",
-            style: {
-                marginTop: 'var(--sp-5)'
-            }
-        }, /*#__PURE__*/ React.createElement("button", {
-            className: 'transport-tab ' + (tab === 'car' ? 'active' : ''),
-            onClick: ()=>setTab('car')
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "car",
-            size: 15
-        }), " By car"), /*#__PURE__*/ React.createElement("button", {
-            className: 'transport-tab ' + (tab === 'bus' ? 'active' : ''),
-            onClick: ()=>setTab('bus')
-        }, /*#__PURE__*/ React.createElement(Icon, {
-            name: "bus",
-            size: 15
-        }), " By bus / train")), steps.map((s)=>/*#__PURE__*/ React.createElement("div", {
-                key: s.n,
-                className: "dir-step"
-            }, /*#__PURE__*/ React.createElement("div", {
-                className: "dir-num"
-            }, s.n), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h4", null, s.title), /*#__PURE__*/ React.createElement("p", null, s.body))))), /*#__PURE__*/ React.createElement("div", null, /*#__PURE__*/ React.createElement("h2", null, "Useful links"), /*#__PURE__*/ React.createElement("p", {
-            className: "muted",
-            style: {
-                marginTop: 'var(--sp-3)',
-                marginBottom: 'var(--sp-2)'
-            }
-        }, "Everything you need before heading up."), /*#__PURE__*/ React.createElement("div", {
-            className: "useful-links-grid"
-        }, links.map((l, i)=>/*#__PURE__*/ React.createElement(R, {
-                key: i,
-                d: i % 3
-            }, /*#__PURE__*/ React.createElement("a", {
-                href: l.url,
-                target: "_blank",
-                rel: "noopener noreferrer",
-                className: "useful-link-card"
-            }, /*#__PURE__*/ React.createElement("div", {
-                className: "icon-wrap"
-            }, /*#__PURE__*/ React.createElement(Icon, {
-                name: l.icon,
-                size: 18
-            })), /*#__PURE__*/ React.createElement("h4", null, l.title), /*#__PURE__*/ React.createElement("p", null, l.sub))))), /*#__PURE__*/ React.createElement("div", {
-            style: {
-                marginTop: 'var(--sp-10)',
-                padding: 'var(--sp-6)',
-                background: 'var(--bg-elev)',
-                border: '1px solid var(--line)',
-                borderRadius: 'var(--r-lg)'
-            }
-        }, /*#__PURE__*/ React.createElement("h3", {
-            style: {
-                marginBottom: 'var(--sp-3)'
-            }
-        }, "Address"), /*#__PURE__*/ React.createElement("p", {
-            style: {
-                color: 'var(--ink-muted)',
-                fontSize: 15,
-                margin: 0,
-                lineHeight: 1.8
-            }
-        }, "Mitre Ski Club", /*#__PURE__*/ React.createElement("br", null), "14 The Avenue", /*#__PURE__*/ React.createElement("br", null), "Mt Buller VIC 3723", /*#__PURE__*/ React.createElement("br", null), /*#__PURE__*/ React.createElement("br", null), "Lodge phone (winter only):", /*#__PURE__*/ React.createElement("br", null), /*#__PURE__*/ React.createElement("a", {
-            href: "tel:0357776070",
-            style: {
-                color: 'var(--brand-deep)'
-            }
-        }, "Ask at resort reception"))))))), /*#__PURE__*/ React.createElement(Footer, null));
+        }, "Members' notices →"))))), /*#__PURE__*/ React.createElement(Footer, {
+            nav: site && site.nav,
+            settings: site && site.settings
+        }));
     }
     /* ── APP ─────────────────────────────────────────────────── */ function App() {
         const [theme, setTheme] = useState(()=>localStorage.getItem('mitre-theme') || 'light');
@@ -2925,10 +2517,20 @@
         }, [
             theme
         ]);
-        const showNav = PAGE !== 'login';
-        return /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement(GlobalFX, null), showNav && /*#__PURE__*/ React.createElement(TopNav, {
+        const [site] = useSanityQuery(SITE_QUERY, {}, []);
+        const slug = PAGE === 'home' ? 'index' : PAGE;
+        const isArticle = PAGE === 'article';
+        const isLogin = PAGE === 'login';
+        return /*#__PURE__*/ React.createElement(React.Fragment, null, /*#__PURE__*/ React.createElement(GlobalFX, null), !isLogin && /*#__PURE__*/ React.createElement(TopNav, {
+            nav: site && site.nav,
+            settings: site && site.settings,
             current: PAGE
-        }), PAGE === 'home' && /*#__PURE__*/ React.createElement(HomePage, null), PAGE === 'lodge' && /*#__PURE__*/ React.createElement(LodgePage, null), PAGE === 'buller' && /*#__PURE__*/ React.createElement(BullerPage, null), PAGE === 'news' && /*#__PURE__*/ React.createElement(NewsPage, null), PAGE === 'article' && /*#__PURE__*/ React.createElement(ArticlePage, null), PAGE === 'enquiries' && /*#__PURE__*/ React.createElement(EnquiriesPage, null), PAGE === 'login' && /*#__PURE__*/ React.createElement(LoginPage, null), PAGE === 'gallery' && /*#__PURE__*/ React.createElement(GalleryPage, null), PAGE === 'shop' && /*#__PURE__*/ React.createElement(ShopPage, null), PAGE === 'directions' && /*#__PURE__*/ React.createElement(DirectionsPage, null), /*#__PURE__*/ React.createElement("div", {
+        }), isArticle ? /*#__PURE__*/ React.createElement(ArticlePage, {
+            site: site
+        }) : /*#__PURE__*/ React.createElement(PageView, {
+            slug: slug,
+            site: site
+        }), /*#__PURE__*/ React.createElement("div", {
             className: "theme-toggle"
         }, [
             'light',
@@ -2936,7 +2538,8 @@
         ].map((t)=>/*#__PURE__*/ React.createElement("button", {
                 key: t,
                 className: theme === t ? 'active' : '',
-                onClick: ()=>setTheme(t)
+                onClick: ()=>setTheme(t),
+                "aria-pressed": theme === t
             }, t.charAt(0).toUpperCase() + t.slice(1)))));
     }
     ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/ React.createElement(App, null));
